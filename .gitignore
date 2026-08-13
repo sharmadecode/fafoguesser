@@ -1,0 +1,33 @@
+# Generic
+.DS_Store
+Thumbs.db
+*.log
+
+# Node / JS
+node_modules/
+dist/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+local.properties
+
+# Data
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Build output (Android)
+build/
+.gradle/
+.cxx/
+*.apk
+*.aab
+captures/

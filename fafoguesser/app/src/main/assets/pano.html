@@ -1,0 +1,173 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>pano</title>
+<style>
+  html, body { position: absolute; inset: 0; margin: 0; padding: 0; overflow: hidden; background: #000; }
+  #stage { position: absolute; inset: 0; overflow: hidden; touch-action: none; }
+  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #placeholder { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #8b93a1; font-family: sans-serif; }
+  #placeholder .t { font-size: 16px; font-weight: bold; color: #e6e9ee; }
+  #placeholder .s { font-size: 12px; padding: 0 24px; text-align: center; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas></canvas></div>
+<div id="placeholder">
+  <div class="t">No panorama</div>
+  <div class="s">Street view unavailable.</div>
+</div>
+<script>
+  // True 360 degree equirectangular sphere viewer (WebGL). The image URL is
+  // handed in from the app: the SERVER's /api/pano/:key proxy, so the
+  // Mapillary image id never reaches this page. The 2:1 image is mapped onto
+  // a sphere in the fragment shader — seamless at any yaw, pitch to +/-90.
+  // Drag to look around, pinch or double-tap to zoom.
+  (function () {
+    var stage = document.getElementById("stage");
+    var canvas = stage.querySelector("canvas");
+    var img = new Image();
+    img.crossOrigin = "anonymous";
+    var yaw = 0, pitch = 0, zoom = 1;
+    var drag = null, pinch = null, pointers = {};
+    var dirty = true;
+    var gl = null, prog = null, tex = null;
+    var uRes = null, uRot = null, uFov = null, aPos = -1;
+    var DEG = Math.PI / 180;
+
+    var VERT = "attribute vec2 a_pos;varying vec2 v_uv;void main(){v_uv=a_pos*0.5+0.5;gl_Position=vec4(a_pos,0.0,1.0);}";
+    var FRAG = "precision mediump float;uniform sampler2D u_tex;uniform vec2 u_res;uniform vec2 u_rot;uniform float u_fov;varying vec2 v_uv;void main(){vec2 p=v_uv*2.0-1.0;p.x*=u_res.x/u_res.y;float k=tan(u_fov*0.5);vec3 dir=normalize(vec3(p.x*k,p.y*k,-1.0));float cp=cos(u_rot.y),sp=sin(u_rot.y);dir=vec3(dir.x,dir.y*cp-dir.z*sp,dir.y*sp+dir.z*cp);float cy=cos(u_rot.x),sy=sin(u_rot.x);dir=vec3(dir.x*cy+dir.z*sy,dir.y,-dir.x*sy+dir.z*cy);float lon=atan(dir.x,-dir.z);float lat=asin(clamp(dir.y,-1.0,1.0));vec2 uv=vec2(0.5+lon/6.28318530718,0.5-lat/3.14159265359);gl_FragColor=texture2D(u_tex,uv);}";
+
+    function initGL() {
+      gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+      if (!gl) return false;
+      function sh(type, src) {
+        var s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { gl.deleteShader(s); return null; }
+        return s;
+      }
+      var vs = sh(gl.VERTEX_SHADER, VERT), fs = sh(gl.FRAGMENT_SHADER, FRAG);
+      if (!vs || !fs) return false;
+      prog = gl.createProgram();
+      gl.attachShader(prog, vs);
+      gl.attachShader(prog, fs);
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return false;
+      gl.useProgram(prog);
+      var buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+      aPos = gl.getAttribLocation(prog, "a_pos");
+      gl.enableVertexAttribArray(aPos);
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+      uRes = gl.getUniformLocation(prog, "u_res");
+      uRot = gl.getUniformLocation(prog, "u_rot");
+      uFov = gl.getUniformLocation(prog, "u_fov");
+      gl.disable(gl.DEPTH_TEST);
+      gl.disable(gl.BLEND);
+      return true;
+    }
+
+    function upload() {
+      if (!tex) tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
+
+    function draw() {
+      if (!gl || !tex) return;
+      var dpr = Math.min(2, window.devicePixelRatio || 1);
+      var w = Math.max(1, Math.round(stage.clientWidth * dpr));
+      var h = Math.max(1, Math.round(stage.clientHeight * dpr));
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
+      gl.uniform2f(uRes, w, h);
+      gl.uniform2f(uRot, yaw, pitch);
+      gl.uniform1f(uFov, (Math.PI / 2) / zoom);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+
+    // Draw only on change (drag/zoom/load) — a continuous 60fps redraw is
+    // the main lag source on weaker GPUs.
+    function loop() {
+      if (dirty) { dirty = false; draw(); }
+      requestAnimationFrame(loop);
+    }
+
+    window.showImage = function (url) {
+      yaw = 0; pitch = 0; zoom = 1; dirty = true;
+      stage.style.display = "block";
+      document.getElementById("placeholder").style.display = "none";
+      img.src = url;
+    };
+    window.showPlaceholder = function () {
+      stage.style.display = "none";
+      document.getElementById("placeholder").style.display = "flex";
+    };
+    window.__setPanoImage = function (url) { img.src = url; };
+    window.__panoState = function () { return { yaw: yaw, pitch: pitch, zoom: zoom }; };
+    window.__setPanoRotation = function (yawDeg, pitchDeg) { yaw = yawDeg * DEG; pitch = pitchDeg * DEG; dirty = true; };
+
+    img.addEventListener("load", function () {
+      if (!gl && !initGL()) { window.showPlaceholder(); return; }
+      upload();
+      dirty = true;
+    });
+    img.addEventListener("error", window.showPlaceholder);
+    requestAnimationFrame(loop);
+
+    stage.addEventListener("pointerdown", function (e) {
+      stage.setPointerCapture(e.pointerId);
+      pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+      if (Object.keys(pointers).length === 1) {
+        drag = { x: e.clientX, y: e.clientY, yaw: yaw, pitch: pitch };
+      }
+    });
+    stage.addEventListener("pointermove", function (e) {
+      if (!pointers[e.pointerId]) return;
+      pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var ids = Object.keys(pointers);
+      if (ids.length >= 2) {
+        drag = null;
+        var a = pointers[ids[0]], b = pointers[ids[1]];
+        var d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (!pinch) pinch = { d: d, zoom: zoom };
+        zoom = Math.min(4, Math.max(1, pinch.zoom * (d / Math.max(1, pinch.d))));
+        dirty = true;
+        return;
+      }
+      pinch = null;
+      if (drag) {
+        yaw = drag.yaw + (e.clientX - drag.x) * 0.18 * DEG;
+        pitch = Math.max(-85 * DEG, Math.min(85 * DEG, drag.pitch - (e.clientY - drag.y) * 0.18 * DEG));
+        dirty = true;
+      }
+    });
+    function endPointer(e) {
+      delete pointers[e.pointerId];
+      drag = null;
+      pinch = null;
+    }
+    stage.addEventListener("pointerup", endPointer);
+    stage.addEventListener("pointercancel", endPointer);
+
+    var lastTap = 0;
+    stage.addEventListener("touchend", function () {
+      var now = Date.now();
+      if (now - lastTap < 300) {
+        zoom = zoom > 1 ? 1 : 2;
+        dirty = true;
+      }
+      lastTap = now;
+    });
+  })();
+</script>
+</body>
+</html>

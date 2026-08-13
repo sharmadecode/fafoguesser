@@ -1,0 +1,781 @@
+:root {
+  --bg: #0e1116;
+  --text: #e6e9ee;
+  --muted: #8b93a1;
+  --green: #4ade80;
+  --amber: #fbbf24;
+  --red: #f87171;
+
+  --cream: #faf9f0;
+  --ink: #131313;
+
+  --sans: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  font: 16px/1.45 var(--sans);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+button { font-family: var(--sans); cursor: pointer; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- Neo-brutalist landing (single page: sign in / play + how-to) ---------- */
+
+.landing {
+  position: relative;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--cream);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+.landing-main {
+  position: relative;
+  z-index: 2;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 22px 20px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+}
+.landing-main > * { animation: land-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.landing-main > *:nth-child(2) { animation-delay: 0.12s; }
+.landing-main > *:nth-child(3) { animation-delay: 0.24s; }
+.landing-main > *:nth-child(4) { animation-delay: 0.36s; }
+@keyframes land-in { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+
+/* Top ticker marquee */
+.ticker {
+  position: relative;
+  z-index: 2;
+  background: var(--ink);
+  color: var(--cream);
+  border-bottom: 3px solid var(--ink);
+  overflow: hidden;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  padding: 7px 0;
+  cursor: default;
+}
+.ticker-inner {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  animation: marquee 26s linear infinite;
+}
+.ticker-inner span { margin: 0 14px; }
+.ticker-inner span:nth-child(odd) { color: var(--green); }
+@keyframes marquee { to { transform: translateX(-100%); } }
+
+/* Floating neo-brutalist shapes (pure CSS, GPU transforms only) */
+.shapes { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.shape { position: absolute; opacity: 0.16; animation: float-up 26s linear infinite; }
+.shape.sq { background: var(--ink); }
+.shape.cr { border: 4px solid var(--ink); border-radius: 50%; }
+.shape.tri {
+  width: 0 !important; height: 0 !important;
+  border-left: 24px solid transparent; border-right: 24px solid transparent;
+  border-bottom: 42px solid var(--ink);
+}
+.shape.x { position: absolute; }
+.shape.x::before, .shape.x::after {
+  content: ""; position: absolute; top: 50%; left: 50%;
+  width: 100%; height: 9px; background: var(--ink);
+}
+.shape.x::before { transform: translate(-50%, -50%) rotate(45deg); }
+.shape.x::after { transform: translate(-50%, -50%) rotate(-45deg); }
+@keyframes float-up {
+  0% { transform: translateY(24vh) rotate(0deg); }
+  100% { transform: translateY(-24vh) rotate(180deg); }
+}
+
+/* Hero */
+.hero { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.landing-logo {
+  font-size: clamp(2.4rem, 8vw, 4.4rem);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.landing-logo .logo-chunk {
+  display: inline-block;
+  animation: letter-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+.logo-chunk { color: var(--green); -webkit-text-stroke: 1.5px var(--ink); }
+.logo-fafo { color: var(--ink); -webkit-text-stroke: 0; }
+.logo-chunk:hover { animation: wobble 0.5s ease-in-out infinite; }
+@keyframes letter-in { from { opacity: 0; transform: translateY(28px) rotate(8deg); } to { opacity: 1; transform: none; } }
+@keyframes wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-7deg); } 75% { transform: rotate(7deg); } }
+.hero-tagline {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  padding: 6px 14px;
+  transform: rotate(-1.2deg);
+  text-transform: uppercase;
+  font-style: normal;
+  margin-top: 0;
+}
+
+/* Main action card: name on top, play actions at the bottom — one page */
+.landing-card {
+  width: min(520px, 100%);
+  background: var(--cream);
+  border: 4px solid var(--ink);
+  box-shadow: 10px 10px 0 var(--ink);
+  padding: 24px 32px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: center;
+  transform: rotate(-0.4deg);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.landing-card:hover { transform: rotate(0deg) translateY(-3px); box-shadow: 14px 14px 0 var(--ink); }
+.landing-actions { display: flex; flex-direction: column; gap: 16px; margin-top: 4px; }
+.landing-card .nick-input { width: 100%; text-align: center; }
+
+/* How to play — small, themed (matches the rest of the UI) */
+.howto { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.howto-title {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--ink);
+  padding: 8px 18px;
+  transform: rotate(-1deg);
+}
+.howto-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  width: 100%;
+}
+.howto-tile {
+  display: flex;
+  gap: 12px;
+  min-height: 142px; /* equal tile heights regardless of text length */
+  background: #fff;
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--ink);
+  padding: 12px 14px;
+  text-align: left;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.howto-tile:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--ink); }
+.howto-num {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 900;
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  width: 34px; height: 34px;
+  flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--amber);
+}
+.howto-tile:nth-child(even) .howto-num { background: var(--green); }
+.howto-body h3 { font-size: 0.95rem; font-weight: 900; letter-spacing: 0.08em; margin-bottom: 3px; }
+.howto-body p { font-size: 1rem; line-height: 1.45; font-weight: 700; color: var(--ink); opacity: 1; }
+
+.landing-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  background: var(--ink);
+  color: var(--cream);
+  border: 3px solid var(--ink);
+  box-shadow: 6px 6px 0 rgba(19, 19, 19, 0.35);
+  padding: 14px;
+  text-align: center;
+}
+.landing-footer p {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.landing-footer p span { color: var(--green); }
+.landing-footer .muted { color: var(--green); letter-spacing: 0.08em; font-weight: 700; }
+
+@media (max-width: 760px) {
+  .landing-main { padding: 20px 14px 32px; gap: 22px; }
+  .landing-card { padding: 22px 18px; box-shadow: 7px 7px 0 var(--ink); }
+  .landing-card:hover { transform: rotate(-0.4deg); box-shadow: 7px 7px 0 var(--ink); }
+  .howto-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-inner, .shapes .shape, .landing-logo .logo-chunk, .landing-main > * { animation: none; }
+  .logo-chunk:hover { animation: none; }
+}
+
+.logo {
+  font-size: 2.6rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.logo span { color: var(--green); -webkit-text-stroke: 1.5px var(--ink); }
+
+.tagline { font-style: italic; font-weight: 600; margin-top: -10px; }
+
+.nick-input, .code-input {
+  font-family: var(--sans);
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 14px;
+  border: 3px solid var(--ink);
+  background: #fff;
+  color: var(--ink);
+  outline: none;
+}
+.nick-input:focus, .code-input:focus { box-shadow: 4px 4px 0 var(--ink); }
+
+.btn-brutal {
+  font-size: 1rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 14px 18px;
+  border: 3px solid var(--ink);
+  background: var(--green);
+  color: var(--ink);
+  box-shadow: 5px 5px 0 var(--ink);
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+}
+.btn-brutal:active:not(:disabled) { transform: translate(4px, 4px); box-shadow: 1px 1px 0 var(--ink); }
+.btn-brutal.btn-big { font-size: 1.4rem; padding: 18px; }
+
+.btn-join { flex: 1; }
+
+.divider { display: flex; align-items: center; gap: 10px; color: var(--ink); opacity: 0.6; font-weight: 700; }
+.divider::before, .divider::after { content: ""; flex: 1; height: 2px; background: var(--ink); opacity: 0.35; }
+
+.join-row { display: flex; gap: 16px; align-items: stretch; }
+.code-input { flex: 2; letter-spacing: 0.35em; min-width: 0; }
+.btn-join { flex: 0 0 auto; width: 86px; white-space: nowrap; }
+
+.error-box {
+  border: 2px solid var(--red);
+  background: #fff;
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+/* ---------- Game screen: full-bleed pano + floating overlays ---------- */
+
+.game {
+  position: relative;
+  height: 100%;
+  background: var(--bg);
+}
+
+.game-top {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: 12px;
+  right: 12px;
+  z-index: 900;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+}
+.game-top > * { pointer-events: auto; }
+
+.game-top-left, .game-top-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.game-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.2rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--ink);
+  padding: 8px 14px;
+  white-space: nowrap;
+}
+.game-title b { color: var(--ink); }
+.game-title b span { color: var(--green); }
+.room-badge {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  background: var(--amber);
+  color: var(--ink);
+  font-weight: 800;
+  padding: 3px 8px;
+  border: 2px solid var(--ink);
+  letter-spacing: 0.08em;
+}
+
+.round-pill {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--ink);
+  background: #fff;
+  border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+  padding: 6px 12px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.round-pill.round-lobby { background: var(--amber); }
+
+.timer-pill {
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--ink);
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--ink);
+  min-width: 104px;
+  padding: 6px 16px;
+  text-align: center;
+}
+.timer-urgent { color: var(--red); }
+
+.leave-btn {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 900;
+  color: var(--ink);
+  background: #fff;
+  border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+  padding: 8px 16px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.leave-btn:hover { background: var(--red); color: #fff; }
+
+.game-body { position: absolute; inset: 0; }
+.game-body .pano { position: absolute; inset: 0; background: #000; }
+
+/* Equirect street-view stage: drag to look around, wheel to zoom. Rendered
+   as a WebGL equirect-sphere — a true 360° view (seamless at any yaw, pitch
+   to ±90°); see PanoramaViewer. */
+.pano-stage { overflow: hidden; cursor: grab; touch-action: none; width: 100%; height: 100%; }
+.pano-stage:active { cursor: grabbing; }
+.pano-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink);
+  color: var(--ink);
+  text-align: center;
+  padding: 20px;
+}
+.pano-placeholder-title { font-weight: 900; color: var(--ink); letter-spacing: 0.14em; font-family: var(--mono); }
+.pano-placeholder-sub { font-size: 0.9rem; font-weight: 700; color: var(--ink); opacity: 0.75; }
+
+/* SUBMIT GUESS — bar under the mini map, same width; grows with it on hover. */
+.guess-dock {
+  position: absolute;
+  left: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  z-index: 850;
+  width: 405px;
+  transition: width 0.28s ease;
+}
+.guess-dock.expanded { width: 696px; }
+
+.guess-btn {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: var(--ink);
+  background: var(--amber);
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--ink);
+  padding: 10px 26px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: font-size 0.28s ease, padding 0.28s ease, box-shadow 0.28s ease, background 0.15s ease;
+}
+.guess-btn:hover { background: var(--green); }
+/* Keep the button visible after submitting (greyed, locked) instead of
+   disappearing — the user can see their guess was locked in. */
+.guess-btn.submitted {
+  background: var(--green);
+  cursor: default;
+}
+.guess-dock.expanded .guess-btn {
+  font-size: 1.05rem;
+  padding: 13px 34px;
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+/* Mini map — bottom-left, grows on hover for pinning. Sits above the
+   leaderboard so a pinned target is never blocked by it. */
+.guessmap-wrap {
+  position: relative;
+  width: 405px;
+  height: 259px;
+  overflow: hidden;
+  border: 3px solid var(--ink);
+  transition: width 0.28s ease, height 0.28s ease;
+  cursor: pointer;
+}
+.guessmap-wrap.expanded {
+  width: 696px;
+  height: 445px;
+}
+.guessmap { height: 100%; width: 100%; background: #1b1f27; }
+.guessmap .leaflet-container { background: #1b1f27; }
+
+.pin-marker { border: none; background: none; }
+.map-pin { pointer-events: none; }
+.map-pin svg { filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.5)); }
+
+/* Actual-location marker: a RED rectangular flag with a subtle pulsing glow.
+   Red (#ef4444) is no longer one of the player colors (replaced with lime), so
+   the truth is unmistakable against the players' pins. */
+.truth-flag svg {
+  animation: truth-glow-pulse 1.4s ease-in-out infinite;
+}
+@keyframes truth-glow-pulse {
+  0%, 100% { filter: drop-shadow(0 0 5px #ef4444) drop-shadow(0 0 10px rgba(239, 68, 68, 0.55)); }
+  50%      { filter: drop-shadow(0 0 9px #ef4444) drop-shadow(0 0 20px rgba(239, 68, 68, 0.95)); }
+}
+
+/* Player color dot in score rows + reveal rows */
+.player-color-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+}
+
+/* Leaderboard — floating top-left, neo-brutalist panel */
+.score-side {
+  position: absolute;
+  top: calc(84px + env(safe-area-inset-top, 0px));
+  left: 14px;
+  z-index: 800;
+  width: 252px;
+  max-height: calc(100% - 392px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  box-shadow: 7px 7px 0 var(--ink);
+  padding: 12px;
+  overflow-y: auto;
+}
+.score-title {
+  font-family: var(--mono); font-size: 0.72rem; font-weight: 900;
+  letter-spacing: 0.22em; color: var(--ink); padding-bottom: 2px;
+}
+
+.score-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #fff; border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  padding: 8px 10px;
+}
+.score-row.me { border-color: var(--green); background: #f0fef4; }
+.score-name {
+  font-weight: 700; font-size: 0.9rem; color: var(--ink);
+  display: flex; align-items: center; gap: 8px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.score-name em { font-style: normal; color: var(--green); font-size: 0.75rem; font-weight: 900; letter-spacing: 0.08em; }
+.score-val { font-family: var(--mono); font-weight: 900; color: var(--ink); }
+.offline { color: #717783; font-size: 0.7rem; font-weight: 700; }
+.guessed-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--amber); border: 1.5px solid var(--ink);
+  display: inline-block;
+}
+
+/* ---------- Full-screen reveal ---------- */
+
+/* The mini map expands to cover the whole viewport while results are shown.
+   z-index sits below the intermission (1000) so match-end still wins. */
+.guessmap-wrap.reveal-mode {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 950;
+  border: none;
+  transition: none;
+  cursor: default;
+}
+.guessmap-wrap.reveal-mode .leaflet-control-zoom { top: 90px; }
+
+.pin-labeled { position: relative; }
+.pin-label {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: -6px;
+  background: var(--pin-color);
+  color: #0e1116;
+  font-family: var(--mono);
+  font-weight: 900;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border: 2px solid #0e1116;
+  white-space: nowrap;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* Results panel — floating over the full-screen map, neo-brutalist card */
+.reveal-panel {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 951;
+  width: min(320px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  box-shadow: 7px 7px 0 var(--ink);
+  padding: 12px;
+}
+.reveal-panel-title {
+  font-family: var(--mono); font-size: 0.75rem; font-weight: 900;
+  letter-spacing: 0.18em; color: var(--ink); padding-bottom: 2px;
+}
+.reveal-panel-rows {
+  display: flex; flex-direction: column; gap: 5px;
+}
+.reveal-panel-row {
+  display: flex; align-items: center; gap: 8px;
+  background: #fff; border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  padding: 7px 10px;
+  font-size: 0.85rem; font-weight: 700; color: var(--ink);
+}
+.reveal-panel-row.me { border-color: var(--green); background: #f0fef4; }
+.reveal-rank { font-family: var(--mono); color: rgba(0, 0, 0, 0.55); width: 18px; }
+.reveal-name {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.reveal-name em { font-style: normal; color: var(--green); font-size: 0.72rem; font-weight: 900; letter-spacing: 0.06em; }
+.reveal-dist { font-family: var(--mono); font-size: 0.75rem; color: rgba(0, 0, 0, 0.6); white-space: nowrap; }
+.reveal-points {
+  font-family: var(--mono); font-weight: 900; color: var(--ink);
+  background: var(--amber); border: 1.5px solid var(--ink);
+  padding: 0 7px; line-height: 1.6;
+}
+.reveal-next {
+  font-family: var(--mono); font-size: 0.7rem; font-weight: 900;
+  letter-spacing: 0.12em; padding: 6px 8px; border: 2px solid var(--ink);
+}
+.reveal-next.loading { color: #0e1116; background: var(--amber); }
+.reveal-next.ready { color: #15803d; background: #f0fef4; }
+.reveal-next.done { color: #0e1116; background: var(--green); }
+
+/* ---------- Intermission ---------- */
+
+.intermission {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(10, 12, 16, 0.88);
+  backdrop-filter: blur(4px);
+  display: grid; place-items: center;
+}
+
+.intermission-card {
+  background: var(--cream); color: var(--ink);
+  border: 4px solid var(--ink); box-shadow: 12px 12px 0 var(--ink);
+  padding: 36px 44px; width: min(460px, 92vw);
+  text-align: center;
+}
+.intermission-card h2 { letter-spacing: 0.1em; margin-bottom: 18px; }
+
+.podium { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.podium-row {
+  display: flex; align-items: center; gap: 10px;
+  border: 3px solid var(--ink); padding: 10px 14px; background: #fff;
+  font-weight: 800; text-align: left;
+}
+.podium-row.first { background: var(--amber); }
+.podium-rank { font-family: var(--mono); font-size: 1.1rem; }
+.podium-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.podium-score { font-family: var(--mono); font-size: 1.1rem; }
+
+.next-in { font-family: var(--mono); font-size: 0.85rem; font-weight: 800; color: var(--ink); }
+
+/* ---------- Leaflet chrome ---------- */
+
+.leaflet-control-zoom { border: 2px solid var(--ink) !important; box-shadow: 2px 2px 0 var(--ink) !important; }
+.leaflet-control-zoom a { background: #fff !important; color: var(--ink) !important; border-color: var(--ink) !important; }
+.leaflet-control-attribution { background: rgba(14, 17, 22, 0.7) !important; color: var(--muted) !important; font-size: 9px !important; }
+.leaflet-control-attribution a { color: var(--muted) !important; }
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1100px) {
+  .score-side { width: 210px; max-height: calc(100% - 360px); }
+  .game-title { font-size: 1.05rem; padding: 7px 12px; }
+  .round-pill { font-size: 0.78rem; padding: 5px 10px; }
+  .timer-pill { font-size: 1.25rem; min-width: 88px; padding: 5px 14px; }
+  .leave-btn { font-size: 0.8rem; padding: 7px 14px; }
+}
+
+@media (max-width: 760px) {
+  .score-side { width: 186px; top: 92px; max-height: calc(100% - 300px); }
+  .game-title { font-size: 1rem; padding: 7px 10px; }
+  .round-pill { font-size: 0.72rem; padding: 5px 9px; }
+  .timer-pill { font-size: 1.05rem; min-width: 76px; padding: 5px 12px; }
+  .leave-btn { font-size: 0.75rem; padding: 7px 12px; }
+}
+
+/* Mobile / narrow screens: guarantee nothing overlaps or overflows. */
+@media (max-width: 700px) {
+  .game-top { left: 8px; right: 8px; top: 8px; gap: 8px; }
+  .game-top-left, .game-top-right { gap: 6px; }
+  .game-title { box-shadow: 4px 4px 0 var(--ink); }
+
+  /* Score list becomes a compact horizontal strip under the header so it can
+     never overlap the map dock at the bottom. */
+  .score-side {
+    top: 96px; left: 8px; right: 8px;
+    width: auto; max-height: 92px;
+    flex-direction: row; overflow-x: auto; gap: 6px;
+    padding: 8px;
+  }
+  .score-side .score-title { display: none; }
+  .score-row { flex: 0 0 auto; min-width: 116px; }
+
+  /* Map dock never overflows the viewport — even the "expanded" state
+     (touch devices force expanded) is capped to the screen width. */
+  .guess-dock { left: 8px; bottom: 8px; width: calc(100vw - 16px); }
+  .guess-dock.expanded { width: calc(100vw - 16px); }
+  .guessmap-wrap,
+  .guessmap-wrap.expanded { width: calc(100vw - 16px); height: 220px; }
+
+  /* Results panel fits the viewport and scrolls when tall. */
+  .reveal-panel { top: 8px; right: 8px; left: 8px; width: auto; max-height: calc(100vh - 16px); }
+  .reveal-panel-rows { max-height: 42vh; overflow-y: auto; }
+
+  .intermission-card { padding: 24px 20px; }
+}
+
+/* ---------- Hidden preload viewer (next round's panorama) ---------- */
+
+/* ---------- Lobby (waiting room) ---------- */
+
+.lobby {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--cream);
+  color: var(--ink);
+}
+
+.lobby-card {
+  width: min(420px, 100%);
+  background: #fff;
+  border: 3px solid var(--ink);
+  box-shadow: 8px 8px 0 var(--ink);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lobby-card h2 { font-size: 22px; letter-spacing: 0.12em; font-weight: 900; }
+
+.lobby-share { color: var(--ink); font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lobby-share b { color: var(--ink); font-family: var(--mono); font-size: 1.15em; }
+.copy-btn {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  background: var(--amber);
+  border: 2px solid var(--ink);
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.copy-btn:hover { background: var(--green); }
+
+.lobby-players { display: flex; flex-direction: column; gap: 6px; }
+
+.lobby-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--cream);
+  border: 2px solid var(--ink);
+  padding: 10px 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.lobby-row.me { border-color: var(--green); }
+
+.lobby-tag { font-size: 10px; font-weight: 900; letter-spacing: 0.08em; color: var(--ink); }
+
+.lobby-wait { color: var(--ink); font-weight: 700; text-align: center; padding: 8px 0; }

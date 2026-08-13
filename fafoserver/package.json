@@ -1,0 +1,33 @@
+{
+  "name": "fafoserver",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "FafoGuesser real-time game server (Socket.IO)",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test:engine": "tsx src/test/engine.test.ts",
+    "test:e2e": "tsx src/test/e2e.test.ts",
+    "test:gameplay": "tsx src/test/gameplay.test.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.2",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.0.0",
+    "socket.io-client": "^4.8.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,8 @@
+<resources>
+    <!-- Base application theme. Dark, no action bar; all UI is Jetpack Compose. -->
+    <style name="Theme.Fafoguesser" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#0E1116</item>
+        <item name="android:statusBarColor">#0E1116</item>
+        <item name="android:navigationBarColor">#0E1116</item>
+    </style>
+</resources>
