@@ -381,39 +381,6 @@ fun LandingScreen(
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
-
-            // Footer
-            BrutalCard(
-                modifier = Modifier.fillMaxWidth(),
-                fill = Ink,
-                borderWidth = 2.dp,
-                shape = RoundedCornerShape(12.dp),
-            ) {
-                Column(
-                    modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = "FAFO GUESSER · figure it out or find out",
-                        color = Cream,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 11.sp,
-                        letterSpacing = 1.5.sp,
-                        textAlign = TextAlign.Center,
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "tap QUICK PLAY to jump into a match",
-                        color = Green,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 10.5.sp,
-                        letterSpacing = 0.5.sp,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-            }
-
             Spacer(Modifier.height(16.dp))
         }
     }

@@ -165,11 +165,6 @@ export function LandingScreen({ nickname, busy, error, onQuickPlay, onCreateRoom
             ))}
           </div>
         </section>
-
-        <footer className="landing-footer">
-          <p>FAFO GUESSER <span>·</span> figure it out or find out</p>
-          <p className="muted">tap QUICK PLAY to jump into a match</p>
-        </footer>
       </main>
     </div>
   );

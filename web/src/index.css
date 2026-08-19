@@ -242,28 +242,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .howto-body h3 { font-size: 0.92rem; font-weight: 900; letter-spacing: 0.08em; margin-bottom: 2px; }
 .howto-body p { font-size: 0.86rem; line-height: 1.35; font-weight: 700; color: var(--ink); opacity: 0.9; }
 
-.landing-footer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  background: var(--ink);
-  color: var(--cream);
-  border: 3px solid var(--ink);
-  padding: 14px;
-  text-align: center;
-}
-.landing-footer p {
-  font-family: var(--mono);
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-.landing-footer p span { color: var(--green); }
-.landing-footer .muted { color: var(--green); letter-spacing: 0.08em; font-weight: 700; }
-
 @media (max-width: 760px) {
   .landing-main { padding: 20px 14px 32px; gap: 22px; }
   .landing-card { padding: 22px 18px; }
