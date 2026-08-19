@@ -120,6 +120,43 @@ async function preparePanoBlob(rawBlob: Blob): Promise<Blob> {
   }
 }
 
+async function fetchPanoBlobWithRetry(
+  panoKey: string,
+  preferredSize: string,
+  retryNonce: number,
+  signal: AbortSignal,
+): Promise<Blob | null> {
+  const attempts = [
+    preferredSize,
+    "?size=2048",
+    "?size=2048",
+  ];
+  for (let i = 0; i < attempts.length; i++) {
+    if (signal.aborted) return null;
+    const sizeParam = attempts[i];
+    const sep = sizeParam ? "&" : "?";
+    const cacheBuster = retryNonce > 0 || i > 0 ? `${sep}r=${retryNonce}_${i}` : "";
+    try {
+      const res = await fetch(`${SERVER_URL}/api/pano/${panoKey}${sizeParam}${cacheBuster}`, {
+        signal,
+      });
+      if (res.ok) {
+        const rawBlob = await res.blob();
+        if (rawBlob && rawBlob.size > 0) {
+          const safeBlob = await preparePanoBlob(rawBlob);
+          if (safeBlob) return safeBlob;
+        }
+      }
+    } catch (err: unknown) {
+      if ((err as Error)?.name === "AbortError" || signal.aborted) return null;
+    }
+    if (i < attempts.length - 1) {
+      await new Promise((r) => setTimeout(r, (i + 1) * 200));
+    }
+  }
+  return null;
+}
+
 // Secure 360° viewer: fetches the proxied equirectangular bytes from
 // /api/pano/:key (so no Mapillary token or image id ever reaches the browser)
 // and renders them with Pannellum as a draggable, zoomable sphere. While
@@ -128,8 +165,18 @@ export const PanoramaViewer = memo(function PanoramaViewer({ panoKey }: { panoKe
   const containerRef = useRef<HTMLDivElement>(null);
   const objectUrlRef = useRef<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [showLoader, setShowLoader] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
   const tip = useRotatingTip(undefined, 3200, status === "loading");
+
+  // Prevent loading flicker: only show spinner/tips if loading takes > 250ms.
+  useEffect(() => {
+    if (status === "loading") {
+      const t = setTimeout(() => setShowLoader(true), 250);
+      return () => clearTimeout(t);
+    }
+    setShowLoader(false);
+  }, [status]);
 
   useEffect(() => {
     // Keys are opaque server UUIDs; reject anything else before it reaches
@@ -154,18 +201,23 @@ export const PanoramaViewer = memo(function PanoramaViewer({ panoKey }: { panoKe
     (async () => {
       try {
         const maxTex = cachedMaxTextureSize ?? getMaxTextureSize();
-        const isSmallScreen = typeof window !== "undefined" && window.innerWidth <= 900;
-        const sizeParam = (maxTex <= 4096 || isSmallScreen) ? "?size=2048" : "";
-        const sep = sizeParam ? "&" : "?";
-        const cacheBuster = retryNonce > 0 ? `${sep}r=${retryNonce}` : "";
-        const res = await fetch(`${SERVER_URL}/api/pano/${panoKey}${sizeParam}${cacheBuster}`, {
-          signal: abortController.signal,
-        });
-        if (!res.ok) throw new Error("pano fetch failed");
-        const rawBlob = await res.blob();
-        if (cancelled) return;
-        const safeBlob = await preparePanoBlob(rawBlob);
-        if (cancelled) return;
+        const isMobileOrSmall =
+          (typeof window !== "undefined" && window.innerWidth <= 900) ||
+          /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const preferredSize = maxTex <= 4096 || isMobileOrSmall ? "?size=2048" : "";
+
+        const safeBlob = await fetchPanoBlobWithRetry(
+          panoKey,
+          preferredSize,
+          retryNonce,
+          abortController.signal,
+        );
+
+        if (cancelled || !safeBlob) {
+          if (!cancelled && !abortController.signal.aborted) setStatus("error");
+          return;
+        }
+
         const objectUrl = URL.createObjectURL(safeBlob);
         objectUrlRef.current = objectUrl;
         if (cancelled) {
@@ -173,11 +225,11 @@ export const PanoramaViewer = memo(function PanoramaViewer({ panoKey }: { panoKe
           objectUrlRef.current = null;
           return;
         }
+
         viewer = factory.viewer(container, {
           type: "equirectangular",
           panorama: objectUrl,
           autoLoad: true,
-          // No +/- buttons: pinch (touch) / drag with the wheel (desktop).
           showZoomCtrl: false,
           showFullscreenCtrl: false,
           mouseZoom: true,
@@ -219,7 +271,7 @@ export const PanoramaViewer = memo(function PanoramaViewer({ panoKey }: { panoKe
       style={{ width: "100%", height: "100%" }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {status === "loading" && (
+      {status === "loading" && showLoader && (
         <>
           <div className="pano-placeholder">
             <div className="pano-placeholder-title">LOADING PANORAMA…</div>
