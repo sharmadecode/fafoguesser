@@ -118,8 +118,7 @@ fun GuessMap(
 
     Box(modifier) {
         MTMapView(
-            referenceStyle = MTMapReferenceStyle.STREETS,
-            styleVariant = MTMapStyleVariant.DARK,
+            referenceStyle = MTMapReferenceStyle.SATELLITE,
             options = MTMapOptions(center = LngLat(0.0, 20.0), zoom = 2.5),
             controller = controller,
             modifier = Modifier.fillMaxSize(),

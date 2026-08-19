@@ -17,13 +17,16 @@ export class MatchmakingService {
           !m.destroyed &&
           !m.players.has(nickname),
       );
-    // Prefer an active round with the most time left (lowest round number),
-    // then intermission (join for the next match), then waiting/new.
+    const connectedOf = (m: Match) =>
+      [...m.players.values()].filter((p) => p.connected).length;
+    // Prefer the fullest live match (never feed a fresh player into a zombie
+    // room), then the round with the most time left, then intermission/waiting.
     candidates.sort(
       (a, b) =>
         PHASE_PREF[a.phase] - PHASE_PREF[b.phase] ||
+        connectedOf(b) - connectedOf(a) ||
         a.round - b.round ||
-        a.players.size - b.players.size,
+        b.players.size - a.players.size,
     );
 
     let match = candidates[0];

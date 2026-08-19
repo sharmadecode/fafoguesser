@@ -55,10 +55,6 @@ export interface IntermissionPayload {
   durationMs: number;
 }
 
-export interface NextPanoramaPayload {
-  key: string;
-}
-
 export interface GameError {
   code: string;
 }

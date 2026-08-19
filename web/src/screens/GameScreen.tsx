@@ -1,12 +1,13 @@
-import { useState } from "react";
-import type { IntermissionPayload, NextPanoramaPayload, PlayerPublic, RoundRevealPayload } from "../types";
+import { useEffect, useRef, useState } from "react";
+import type { IntermissionPayload, PlayerPublic, RoundRevealPayload } from "../types";
 import { GuessMap } from "../components/GuessMap";
 import { PanoramaViewer } from "../components/PanoramaViewer";
-import { PanoPreloader } from "../components/PanoPreloader";
 import { useNow } from "../hooks/useNow";
+import { useRotatingTip } from "../hooks/useRotatingTip";
 
 interface GameScreenProps {
   nickname: string;
+  phase: "playing" | "intermission" | "waiting";
   round: number;
   roundCount: number;
   roomCode: string | null;
@@ -14,16 +15,16 @@ interface GameScreenProps {
   mode: "quick" | "room";
   panorama: string | null;
   roundEndsAt: number | null;
+  intermissionEndsAt: number | null;
   serverNow: () => number;
-  guess: { lat: number; lng: number } | null;
   submitted: boolean;
   reveal: RoundRevealPayload | null;
   players: PlayerPublic[];
   intermission: IntermissionPayload | null;
-  nextPanorama: NextPanoramaPayload | null;
   canPick: boolean;
-  onPick: (pick: { lat: number; lng: number }) => void;
-  onSubmitGuess: () => void;
+  connected: boolean;
+  error: string | null;
+  onPinPlace: (pick: { lat: number; lng: number }) => void;
   onStartRoom: () => void;
   onLeave: () => void;
 }
@@ -34,26 +35,66 @@ function formatTime(ms: number): string {
 }
 
 function formatDistance(m: number | null): string {
-  if (m == null) return "—";
+  if (m === null || !Number.isFinite(m)) return "–";
   if (m < 1000) return `${Math.round(m)} m`;
   const km = m / 1000;
-  return `${km >= 100 ? Math.round(km) : km.toFixed(1)} km`;
+  return km >= 100 ? `${Math.round(km).toLocaleString()} km` : `${km.toFixed(1)} km`;
 }
 
 export function GameScreen(props: GameScreenProps) {
-  const inLobby = props.mode === "room" && !props.intermission && !props.reveal && props.round === 0 && !props.panorama;
+  const inLobby =
+    props.mode === "room" && !props.intermission && !props.reveal && props.round === 0 && !props.panorama && props.phase !== "playing";
+  const waiting = !inLobby && props.round === 0 && !props.panorama && !props.reveal && !props.intermission;
+  // Intermission can also arrive via snapshot phase alone (a rejoin mid-
+  // intermission never gets the broadcast intermission.start event) — the
+  // overlay must render then too, and the old round's pano must stay hidden.
+  const intermissionActive = !!props.intermission || props.phase === "intermission";
+
+  const [splitFocus, setSplitFocus] = useState<"pano" | "map">("pano");
+  const tip = useRotatingTip(undefined, 3200, waiting || !props.panorama);
+
+  // Auto-dismiss game error after 5s
+  const [displayError, setDisplayError] = useState<string | null>(props.error);
+  useEffect(() => {
+    setDisplayError(props.error);
+    if (!props.error) return;
+    const id = window.setTimeout(() => setDisplayError(null), 5000);
+    return () => window.clearTimeout(id);
+  }, [props.error]);
+
+  // Desktop (mouse, wide viewport): hover-enlarge docked map; touch/small
+  // gets the adaptive split. Listens to resize/orientation changes.
+  const [isFine, setIsFine] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia?.("(pointer: fine) and (min-width: 900px)").matches,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(pointer: fine) and (min-width: 900px)");
+    const handler = (e: MediaQueryListEvent) => setIsFine(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  useEffect(() => {
+    setSplitFocus("pano");
+  }, [props.round, props.panorama]);
 
   return (
-    <div className="game">
+    <div className={`game${isFine ? " desktop" : ""}`}>
+      {(!props.connected || displayError) && (
+        <div className="banner-stack" role="alert" aria-live="polite">
+          {!props.connected && (
+            <div className="reconnect-banner">CONNECTION LOST — RECONNECTING…</div>
+          )}
+          {displayError && <div className="game-error-banner">{displayError}</div>}
+        </div>
+      )}
       <header className="game-top">
         <div className="game-top-left">
-          <div className="game-title">
-            <b>FAFO<span>GUESSER</span></b>
-            {props.roomCode && <span className="room-badge">ROOM {props.roomCode}</span>}
-          </div>
           <div className={`round-pill ${inLobby ? "round-lobby" : ""}`}>
-            {inLobby ? "LOBBY" : `ROUND ${props.round}/${props.roundCount}`}
+            {inLobby ? "LOBBY" : `ROUND ${props.round + 1}/${props.roundCount}`}
           </div>
+          {props.roomCode && <span className="room-badge">ROOM {props.roomCode}</span>}
         </div>
         <div className="game-top-right">
           <TimerPill roundEndsAt={props.roundEndsAt} serverNow={props.serverNow} />
@@ -63,54 +104,56 @@ export function GameScreen(props: GameScreenProps) {
         </div>
       </header>
 
-      {inLobby ? (
-        <LobbyBlock {...props} />
-      ) : (
-        <div className="game-body">
-          {props.panorama ? (
-            <PanoramaBlock panoKey={props.panorama} />
-          ) : (
-            <div className="pano-placeholder">
-              <div className="pano-placeholder-title">LOADING PANORAMA…</div>
-              <div className="pano-placeholder-sub">Finding a street view for you</div>
-            </div>
-          )}
-
-          <aside className="score-side">
-            <div className="score-title">SCORES</div>
-            {[...props.players]
-              .sort((a, b) => b.score - a.score)
-              .map((p) => (
-                <div key={p.nickname} className={`score-row ${p.nickname === props.nickname ? "me" : ""}`}>
-                  <span className="score-name">
-                    <span className="player-color-dot" style={{ background: p.color }} />
-                    {p.nickname}
-                    {p.nickname === props.nickname && <em>(you)</em>}
-                    {!p.connected && <span className="offline">offline</span>}
-                  </span>
-                  <span className="score-val">
-                    {p.guessed && !props.reveal ? <span className="guessed-dot" /> : null}
-                    {p.score}
-                  </span>
-                </div>
-              ))}
-          </aside>
-
-          <MapBlock {...props} />
-
-          {props.reveal && (
-            <RevealPanel
-              reveal={props.reveal}
-              nickname={props.nickname}
-              roundCount={props.roundCount}
-              nextPanorama={props.nextPanorama}
-            />
-          )}
-        </div>
+      {props.reveal && (
+        <RevealStrip
+          reveal={props.reveal}
+          nickname={props.nickname}
+        />
       )}
 
-      {props.intermission && <IntermissionOverlay payload={props.intermission} serverNow={props.serverNow} />}
-      <PanoPreloader panoKey={props.nextPanorama?.key ?? null} />
+      {inLobby ? (
+        <LobbyBlock {...props} />
+      ) : intermissionActive ? (
+        <IntermissionOverlay
+          payload={props.intermission}
+          intermissionEndsAt={props.intermissionEndsAt}
+          serverNow={props.serverNow}
+          onLeave={props.onLeave}
+        />
+      ) : waiting ? (
+        <WaitingBlock isRoom={props.mode === "room"} />
+      ) : (
+        <div className={`game-body${splitFocus === "map" ? " map-focused" : ""}`}>
+          {!props.reveal && (
+            <>
+              <div
+                className="pano-slot"
+                onPointerDownCapture={isFine ? undefined : () => setSplitFocus("pano")}
+              >
+                {props.panorama ? (
+                  <PanoramaViewer panoKey={props.panorama} />
+                ) : (
+                  <div className="pano-placeholder">
+                    <div className="pano-placeholder-title">LOADING PANORAMA…</div>
+                    <div className="pano-placeholder-sub">{tip}</div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+          <div
+            className={`map-slot${props.reveal ? " reveal-mode" : ""}`}
+            onPointerDownCapture={isFine ? undefined : () => setSplitFocus("map")}
+          >
+            <GuessMap
+              enabled={props.canPick}
+              reveal={props.reveal}
+              onPinPlace={props.onPinPlace}
+              round={props.round}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -118,12 +161,24 @@ export function GameScreen(props: GameScreenProps) {
 function LobbyBlock(props: GameScreenProps) {
   const isHost = props.host === props.nickname;
   const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+    };
+  }, []);
+
   const copy = async () => {
     if (!props.roomCode) return;
+    if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
     try {
       await navigator.clipboard.writeText(props.roomCode);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      copyTimerRef.current = window.setTimeout(() => {
+        setCopied(false);
+        copyTimerRef.current = null;
+      }, 1500);
     } catch {
       const ta = document.createElement("textarea");
       ta.value = props.roomCode;
@@ -132,15 +187,22 @@ function LobbyBlock(props: GameScreenProps) {
       document.execCommand("copy");
       document.body.removeChild(ta);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      copyTimerRef.current = window.setTimeout(() => {
+        setCopied(false);
+        copyTimerRef.current = null;
+      }, 1500);
     }
   };
+
   return (
     <div className="lobby">
       <div className="lobby-card">
         <h2>LOBBY</h2>
         <div className="lobby-share">
-          <span>Share code <b>{props.roomCode}</b> with up to {5 - props.players.length} more player{5 - props.players.length === 1 ? "" : "s"}</span>
+          <span>
+            Share code <b>{props.roomCode}</b> with up to {5 - props.players.length} more player
+            {5 - props.players.length === 1 ? "" : "s"}
+          </span>
           <button className="copy-btn" onClick={copy}>
             {copied ? "COPIED ✓" : "COPY"}
           </button>
@@ -149,7 +211,9 @@ function LobbyBlock(props: GameScreenProps) {
           {props.players.map((p) => (
             <div key={p.nickname} className={`lobby-row ${p.nickname === props.nickname ? "me" : ""}`}>
               <span>{p.nickname}</span>
-              <span className="lobby-tag">{p.nickname === props.host ? "HOST" : p.nickname === props.nickname ? "YOU" : ""}</span>
+              <span className="lobby-tag">
+                {p.nickname === props.host ? "HOST" : p.nickname === props.nickname ? "YOU" : ""}
+              </span>
             </div>
           ))}
         </div>
@@ -165,102 +229,101 @@ function LobbyBlock(props: GameScreenProps) {
   );
 }
 
-function PanoramaBlock({ panoKey }: { panoKey: string }) {
-  // The viewer is recreated per round (fetches the proxied bytes as a blob);
-  // the PanoPreloader warms the cache so this fetch is near-instant.
-  return <PanoramaViewer panoKey={panoKey} />;
-}
-
-function MapBlock(props: GameScreenProps) {
+function WaitingBlock({ isRoom }: { isRoom: boolean }) {
+  const tip = useRotatingTip();
   return (
-    <GuessMap
-      enabled={props.canPick}
-      guess={props.guess}
-      reveal={props.reveal}
-      onPick={props.onPick}
-      nickname={props.nickname}
-      players={props.players}
-      submitted={props.submitted}
-      round={props.round}
-      onSubmitGuess={props.onSubmitGuess}
-    />
+    <div className="waiting">
+      <div className="waiting-card">
+        <div className="waiting-spinner" aria-hidden="true" />
+        <h2>{isRoom ? "STARTING MATCH…" : "FINDING MATCH…"}</h2>
+        <p className="waiting-sub">Finding a street view for you</p>
+        <div className="waiting-tip">{tip}</div>
+      </div>
+    </div>
   );
 }
 
-function IntermissionOverlay({ payload, serverNow }: { payload: IntermissionPayload; serverNow: () => number }) {
+function IntermissionOverlay({
+  payload,
+  intermissionEndsAt,
+  serverNow,
+  onLeave,
+}: {
+  payload: IntermissionPayload | null;
+  intermissionEndsAt: number | null;
+  serverNow: () => number;
+  onLeave: () => void;
+}) {
   const now = useNow(serverNow, 500);
-  const remaining = Math.max(0, payload.nextMatchAt - now);
+  // A rejoin mid-intermission has no intermission.start payload — count down
+  // from the snapshot's intermissionEndsAt instead.
+  const deadline = payload ? payload.nextMatchAt : intermissionEndsAt;
+  const remaining = deadline ? Math.max(0, deadline - now) : 0;
   return (
     <div className="intermission">
       <div className="intermission-card">
-        <h2>MATCH {payload.matchNumber} OVER</h2>
-        <div className="podium">
-          {payload.finalRanks.map((r, i) => (
-            <div key={r.nickname} className={`podium-row ${i === 0 ? "first" : ""}`}>
-              <span className="podium-rank">{i + 1}</span>
-              <span className="podium-name">{r.nickname}</span>
-              <span className="podium-score">{r.score}</span>
-            </div>
-          ))}
-        </div>
+        <h2>{payload ? `MATCH ${payload.matchNumber} OVER` : "MATCH OVER"}</h2>
+        {payload && (
+          <div className="podium">
+            {payload.finalRanks.map((r, i) => (
+              <div key={r.nickname} className={`podium-row ${i === 0 ? "first" : ""}`}>
+                <span className="podium-rank">{i === 0 ? "★" : i + 1}</span>
+                <span className="podium-name">{r.nickname}</span>
+                <span className="podium-score">{r.score}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="next-in">next match in {Math.ceil(remaining / 1000)}s</div>
+        <button className="btn-brutal intermission-leave" onClick={onLeave}>
+          LEAVE
+        </button>
       </div>
     </div>
   );
 }
 
-// The round countdown. Ticks internally via useNow (250ms) so ONLY this pill
-// re-renders during a round — not the whole game tree incl. the Leaflet map.
-// The previous design lifted `now` to <App> and updated it every 100ms.
 function TimerPill({ roundEndsAt, serverNow }: { roundEndsAt: number | null; serverNow: () => number }) {
   const now = useNow(serverNow, 250);
   const remaining = roundEndsAt ? Math.max(0, roundEndsAt - now) : 0;
-  const urgent = remaining > 0 && remaining <= 5000;
+  const liveRound = roundEndsAt != null && remaining > 0;
+  const urgent = liveRound && remaining <= 5000;
   return (
-    <div className={`timer-pill ${urgent ? "timer-urgent" : ""}`}>
-      {roundEndsAt ? formatTime(remaining) : "—"}
+    <div className={`timer-pill ${urgent ? "timer-urgent" : ""}`} aria-live="off">
+      {liveRound ? formatTime(remaining) : "–:–"}
     </div>
   );
 }
 
-// Floating results panel over the full-screen reveal map: every player, their
-// color, distance from the target and round points. The footer shows whether
-// the NEXT round's panorama is already warm (preloaded while we played).
-function RevealPanel({
+function RevealStrip({
   reveal,
   nickname,
-  roundCount,
-  nextPanorama,
 }: {
   reveal: RoundRevealPayload;
   nickname: string;
-  roundCount: number;
-  nextPanorama: NextPanoramaPayload | null;
 }) {
-  const isLastRound = reveal.round >= roundCount;
   return (
-    <div className="reveal-panel">
-      <div className="reveal-panel-title">ROUND {reveal.round} · REVEAL</div>
-      <div className="reveal-panel-rows">
+    <div className="reveal-strip">
+      <div className="reveal-strip-title">ROUND {reveal.round + 1} · RESULTS</div>
+      <div className="reveal-table">
+        <div className="reveal-table-head">
+          <span className="reveal-col-rank">#</span>
+          <span className="reveal-col-name">PLAYER</span>
+          <span className="reveal-col-dist">DIST</span>
+          <span className="reveal-col-score">SCORE</span>
+        </div>
         {reveal.results.map((r, i) => (
-          <div key={r.nickname} className={`reveal-panel-row ${r.nickname === nickname ? "me" : ""}`}>
-            <span className="reveal-rank">{i + 1}</span>
+          <div key={r.nickname} className={`reveal-row${r.nickname === nickname ? " me" : ""}`}>
+            <span className="reveal-col-rank">{i + 1}</span>
             <span className="player-color-dot" style={{ background: r.color }} />
-            <span className="reveal-name">
+            <span className="reveal-col-name">
               {r.nickname}
               {r.nickname === nickname && <em>(you)</em>}
             </span>
-            <span className="reveal-dist">{formatDistance(r.distanceM)}</span>
-            <span className="reveal-points">+{r.points}</span>
+            <span className="reveal-col-dist">{formatDistance(r.distanceM)}</span>
+            <span className="reveal-col-score">{r.total}</span>
           </div>
         ))}
-      </div>
-      <div className={`reveal-next ${isLastRound ? "done" : nextPanorama ? "ready" : "loading"}`}>
-        {isLastRound
-          ? "MATCH COMPLETE — FINAL SCORES"
-          : nextPanorama
-            ? "NEXT LOCATION READY — STARTING SOON"
-            : "LOADING NEXT LOCATION…"}
       </div>
     </div>
   );

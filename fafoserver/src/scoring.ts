@@ -11,18 +11,19 @@ export function haversineM(
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(bLat - aLat);
   const dLng = toRad(bLng - aLng);
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  // Clamp the haversine argument to [0, 1]: floating-point rounding can push
+  // it a hair above 1 at exact antipodes, making sqrt(>1) NaN which would
+  // silently score the guess as 0. NaN safety guard for callers.
+  const s = Math.min(
+    1,
+    Math.max(0, Math.sin(dLat / 2) ** 2 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2),
+  );
   return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(s));
 }
 
-/** Distance-percentage round scoring: every player's guess maps to
- *  `round(1000 · (1 − d / FULL_SCORE_DISTANCE_M))` — 0 m → 1000, at the max
- *  possible great-circle distance (~20,037 km) → POINTS_MIN. Linear,
- *  independent of the other guesses (no ranking), clamped to
- *  [POINTS_MIN, 1000] so even a far guess scores — only abstains (null /
- *  non-finite, handled by the caller as a hard 0) earn nothing. */
+/** Distance-percentage scoring: `round(1000 · (1 − d / FULL_SCORE_DISTANCE_M))`
+ *  — 0 m → 1000, at the max great-circle distance → POINTS_MIN. Linear, no
+ *  ranking; every attempt scores at least POINTS_MIN (only abstains earn 0). */
 export function pointsForDistance(distanceM: number | null): number {
   if (distanceM === null || !Number.isFinite(distanceM)) return 0;
   const score = 1000 * (1 - distanceM / GAME.FULL_SCORE_DISTANCE_M);

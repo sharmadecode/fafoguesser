@@ -3,7 +3,6 @@ import type {
   GameError,
   IntermissionPayload,
   MatchSnapshot,
-  NextPanoramaPayload,
   PlayerPublic,
   RoundRevealPayload,
   RoundStartPayload,
@@ -16,7 +15,6 @@ export interface GameEventMap {
   "round.start": RoundStartPayload;
   "round.reveal": RoundRevealPayload;
   "intermission.start": IntermissionPayload;
-  "next.panorama": NextPanoramaPayload;
   "player.joined": { nickname: string; host: string | null; players: PlayerPublic[] };
   "player.left": { nickname: string; host: string | null; players: PlayerPublic[] };
   "player.updated": { nickname: string; score: number; guessed: boolean; host: string | null; players: PlayerPublic[] };
@@ -41,6 +39,17 @@ export class GameClient {
   private onConnect: (() => void) | null = null;
   private connectTimer: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Map<GameEvent, Set<(p: unknown) => void>>();
+  private statusListeners = new Set<(connected: boolean) => void>();
+
+  /** Subscribe to raw connection state (for reconnect banners): fires
+   *  immediately with the current state, then on every connect/disconnect. */
+  onStatusChange(cb: (connected: boolean) => void): () => void {
+    this.statusListeners.add(cb);
+    cb(!!this.socket?.connected);
+    return () => {
+      this.statusListeners.delete(cb);
+    };
+  }
 
   connect(url: string, onConnect: () => void, onError: (message: string) => void): void {
     this.onConnect = onConnect;
@@ -57,7 +66,7 @@ export class GameClient {
     }
     this.socket?.disconnect();
     const socket = io(url, {
-      transports: ["websocket"],
+      transports: ["polling", "websocket"],
       timeout: 8000,
       // Retry forever with backoff: a transient outage (server restart)
       // must not leave the tab dead — the next successful connect clears
@@ -80,8 +89,16 @@ export class GameClient {
       });
     });
     socket.on("connect", () => {
+      if (this.connectTimer) {
+        clearTimeout(this.connectTimer);
+        this.connectTimer = null;
+      }
+      this.statusListeners.forEach((fn) => fn(true));
       void this.clockSync();
       this.onConnect?.();
+    });
+    socket.on("disconnect", () => {
+      this.statusListeners.forEach((fn) => fn(false));
     });
     // Surface ONE user-facing error per connect cycle if the connection
     // hasn't established within 10s. Retries keep running in the
@@ -119,11 +136,15 @@ export class GameClient {
     for (let i = 0; i < 3 && this.socket?.connected; i++) {
       const t0 = Date.now();
       const t1 = await new Promise<number>((resolve) => {
-        const timer = setTimeout(() => resolve(0), 1000);
-        this.socket!.once("sync.ack", (ack: { t0: number; t1: number }) => {
+        const onAck = (ack: { t0: number; t1: number }) => {
           clearTimeout(timer);
           resolve(ack.t1);
-        });
+        };
+        const timer = setTimeout(() => {
+          this.socket?.off("sync.ack", onAck);
+          resolve(0);
+        }, 1000);
+        this.socket!.once("sync.ack", onAck);
         this.socket!.emit("sync", { t0 });
       });
       if (t1 > 0) {

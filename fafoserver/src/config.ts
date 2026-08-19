@@ -3,16 +3,18 @@ import "dotenv/config";
 export const ENV = {
   PORT: Number(process.env.PORT ?? 8787),
   NODE_ENV: process.env.NODE_ENV ?? "development",
+  IS_PRODUCTION: process.env.NODE_ENV === "production",
   MAPILLARY_TOKEN: process.env.MAPILLARY_TOKEN ?? "",
-  MAPTILER_KEY: process.env.MAPTILER_KEY ?? "",
-  DB_PATH: process.env.DB_PATH ?? "data/leaderboard.db",
+  // Comma-separated exact IPv4s and/or CIDRs of reverse proxies whose
+  // X-Forwarded-For appendings may be trusted (e.g. Render's LB). Empty =
+  // never trust XFF: rate limits key on the socket peer address.
+  PROXY_TRUST: process.env.PROXY_TRUST ?? "",
   CORS_ORIGINS: (process.env.CORS_ORIGINS ?? "http://localhost:5173")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean),
 };
 
-// Mutable on purpose: tests shrink these values to run fast.
 export const GAME = {
   ROUNDS_PER_MATCH: 5,
   ROUND_DURATION_MS: 30_000,

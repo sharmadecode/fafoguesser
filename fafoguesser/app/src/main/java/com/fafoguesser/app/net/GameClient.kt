@@ -20,6 +20,7 @@ class GameClient(private val url: String) {
         fun onIntermission(i: Intermission) {}
         fun onPlayers(players: List<PlayerPublic>) {}
         fun onHost(host: String?) {}
+        fun onDisconnected() {}
         fun onReconnected() {}
         fun onMatchLeft() {}
         fun onError(code: String) {}
@@ -30,10 +31,35 @@ class GameClient(private val url: String) {
     @Volatile private var offset = 0L
     private val listeners = CopyOnWriteArrayList<Listener>()
     private var pendingOnConnected: (() -> Unit)? = null
+    // Bump on every disconnect / new sync run so stale threads abort — an old
+    // sync loop must never clobber a fresh clock sample set.
+    private val syncGen = java.util.concurrent.atomic.AtomicInteger(0)
+    // Backoff retries keep the app alive, but the error should surface once
+    // per outage — not once per failed attempt.
+    @Volatile private var connectErrorReported = false
 
     fun addListener(l: Listener): () -> Unit {
         listeners.add(l)
         return { listeners.remove(l) }
+    }
+
+    companion object {
+        fun resolveUrl(configured: String): String {
+            val isEmulator = android.os.Build.FINGERPRINT.startsWith("generic") ||
+                    android.os.Build.FINGERPRINT.startsWith("unknown") ||
+                    android.os.Build.MODEL.contains("google_sdk") ||
+                    android.os.Build.MODEL.contains("Emulator") ||
+                    android.os.Build.MODEL.contains("Android SDK built for x86") ||
+                    android.os.Build.HARDWARE.contains("goldfish") ||
+                    android.os.Build.HARDWARE.contains("ranchu") ||
+                    android.os.Build.PRODUCT.contains("sdk_gphone") ||
+                    android.os.Build.PRODUCT.contains("emulator")
+
+            if (isEmulator && (configured.contains("192.168.") || configured.contains("localhost") || configured.contains("127.0.0.1"))) {
+                return "http://10.0.2.2:8787"
+            }
+            return configured
+        }
     }
 
     /** Opens the socket (or reuses the existing one) and calls onConnected
@@ -47,10 +73,11 @@ class GameClient(private val url: String) {
         }
         pendingOnConnected = onConnected
         if (existing != null) return // still connecting; fires on EVENT_CONNECT
+        val effectiveUrl = resolveUrl(url)
         val s = IO.socket(
-            URI.create(url),
+            URI.create(effectiveUrl),
             IO.Options().apply {
-                transports = arrayOf("websocket")
+                transports = arrayOf("polling", "websocket")
                 reconnection = true
                 // Default is unlimited retries with backoff; a transient
                 // server outage must not leave the app dead (EVENT_CONNECT
@@ -60,6 +87,7 @@ class GameClient(private val url: String) {
         )
         socket = s
         s.on(Socket.EVENT_CONNECT, Emitter.Listener {
+            connectErrorReported = false
             val pending = pendingOnConnected
             pendingOnConnected = null
             if (pending != null) {
@@ -69,7 +97,15 @@ class GameClient(private val url: String) {
             }
             startClockSync()
         })
+        s.on(Socket.EVENT_DISCONNECT, Emitter.Listener {
+            // Also fires on an intentional disconnect(); listeners guard with
+            // their own screen state. A mid-match drop surfaces a banner so
+            // the reconnect (and re-auth) is visible, not silent.
+            listeners.forEach { it.onDisconnected() }
+        })
         s.on(Socket.EVENT_CONNECT_ERROR, Emitter.Listener {
+            if (connectErrorReported) return@Listener
+            connectErrorReported = true
             listeners.forEach { l -> l.onConnectError("Cannot reach game server") }
         })
         s.on("sync.ack", Emitter.Listener { args ->
@@ -98,19 +134,19 @@ class GameClient(private val url: String) {
         })
         s.on("match.snapshot", Emitter.Listener { args ->
             val o = args.getOrNull(0) as? JSONObject ?: return@Listener
-            listeners.forEach { it.onSnapshot(MatchSnapshot.fromJson(o)) }
+            safeParse({ MatchSnapshot.fromJson(o) }) { listeners.forEach { l -> l.onSnapshot(it) } }
         })
         s.on("round.start", Emitter.Listener { args ->
             val o = args.getOrNull(0) as? JSONObject ?: return@Listener
-            listeners.forEach { it.onRoundStart(RoundStart.fromJson(o)) }
+            safeParse({ RoundStart.fromJson(o) }) { listeners.forEach { l -> l.onRoundStart(it) } }
         })
         s.on("round.reveal", Emitter.Listener { args ->
             val o = args.getOrNull(0) as? JSONObject ?: return@Listener
-            listeners.forEach { it.onRoundReveal(RoundReveal.fromJson(o)) }
+            safeParse({ RoundReveal.fromJson(o) }) { listeners.forEach { l -> l.onRoundReveal(it) } }
         })
         s.on("intermission.start", Emitter.Listener { args ->
             val o = args.getOrNull(0) as? JSONObject ?: return@Listener
-            listeners.forEach { it.onIntermission(Intermission.fromJson(o)) }
+            safeParse({ Intermission.fromJson(o) }) { listeners.forEach { l -> l.onIntermission(it) } }
         })
         s.on("player.joined", Emitter.Listener { args -> emitPlayers(args) })
         s.on("player.left", Emitter.Listener { args -> emitPlayers(args) })
@@ -128,9 +164,11 @@ class GameClient(private val url: String) {
     // Runs off the socket event thread so the sleeps don't block event delivery.
     private fun startClockSync() {
         val s = socket ?: return
+        val gen = syncGen.incrementAndGet()
         Thread {
             synchronized(samples) { samples.clear() }
             for (i in 0 until 3) {
+                if (gen != syncGen.get()) return@Thread
                 s.emit("sync", JSONObject().put("t0", System.currentTimeMillis()))
                 try {
                     Thread.sleep(50)
@@ -158,19 +196,35 @@ class GameClient(private val url: String) {
         socket?.emit(event, payload)
     }
 
+    /** Parse boundary: a malformed/version-skewed packet must never crash the
+     *  app on the socket thread — drop the event and surface a soft error. */
+    private inline fun <T> safeParse(block: () -> T, emit: (T) -> Unit) {
+        try {
+            emit(block())
+        } catch (_: Exception) {
+            listeners.forEach { it.onError("bad_event") }
+        }
+    }
+
     private fun emitPlayers(args: Array<Any?>) {
         val o = args.getOrNull(0) as? JSONObject ?: return
-        val arr = o.optJSONArray("players") ?: return
-        val players = (0 until arr.length()).map { PlayerPublic.fromJson(arr.getJSONObject(it)) }
-        listeners.forEach { it.onPlayers(players) }
-        if (o.has("host")) {
-            val host = if (o.isNull("host")) null else o.getString("host")
-            listeners.forEach { it.onHost(host) }
+        try {
+            val arr = o.optJSONArray("players") ?: return
+            val players = (0 until arr.length()).map { PlayerPublic.fromJson(arr.getJSONObject(it)) }
+            listeners.forEach { it.onPlayers(players) }
+            if (o.has("host")) {
+                val host = if (o.isNull("host")) null else o.getString("host")
+                listeners.forEach { it.onHost(host) }
+            }
+        } catch (_: Exception) {
+            listeners.forEach { it.onError("bad_event") }
         }
     }
 
     fun disconnect() {
         pendingOnConnected = null
+        syncGen.incrementAndGet()
+        connectErrorReported = false
         socket?.disconnect()
         socket = null
         samples.clear()

@@ -1,12 +1,10 @@
-# Add project specific R8 rules here.
-# AGP will combine all keep rule files in src/main/keepRules to pass to R8
-#
-# For more details, see
-#   https://d.android.com/r/tools/r8/keep-rules
+# JavaScript bridge injected into pano.html. R8 must never rename or strip
+# the class (looked up by string "PanoBridge") or its @JavascriptInterface
+# methods, or the panorama viewer breaks in release builds.
+-keep class com.fafoguesser.app.ui.panorama.PanoBridge { *; }
+-keepclassmembers class com.fafoguesser.app.ui.panorama.PanoBridge { public *; }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Belt and braces: never touch @JavascriptInterface members anywhere.
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}

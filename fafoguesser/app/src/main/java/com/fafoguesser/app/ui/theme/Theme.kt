@@ -6,11 +6,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 val Ink = Color(0xFF131313)
-val Cream = Color(0xFFFAF9F0)
+val Cream = Color(0xFFF4ECE1)
 
 val Green = Color(0xFF4ADE80)
 val Amber = Color(0xFFFBBF24)
-val Red = Color(0xFFF87171)
+val Red = Color(0xFFEF4444)
 val Blue = Color(0xFF60A5FA)
 
 val Bg = Color(0xFF0E1116)

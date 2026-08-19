@@ -1,0 +1,482 @@
+[
+  {
+    "imageId": "1322724281757282",
+    "lat": 48.857282914778,
+    "lng": 2.3522318194665,
+    "city": "Paris, France"
+  },
+  {
+    "imageId": "2817714045286115",
+    "lat": 51.507581553347,
+    "lng": -0.12787624359818,
+    "city": "London, UK"
+  },
+  {
+    "imageId": "502470987564761",
+    "lat": -33.868886449948,
+    "lng": 151.20903740226,
+    "city": "Sydney, Australia"
+  },
+  {
+    "imageId": "1440721727278135",
+    "lat": 52.372662698526,
+    "lng": 4.8928512935531,
+    "city": "Amsterdam, Netherlands"
+  },
+  {
+    "imageId": "2496851720689598",
+    "lat": 52.516346436238,
+    "lng": 13.377783807914,
+    "city": "Berlin, Germany"
+  },
+  {
+    "imageId": "1070346518466449",
+    "lat": 41.888147666758,
+    "lng": 12.490188010137,
+    "city": "Rome, Italy"
+  },
+  {
+    "imageId": "949582214454464",
+    "lat": 59.329022650834,
+    "lng": 18.068792317264,
+    "city": "Stockholm, Sweden"
+  },
+  {
+    "imageId": "501136397595468",
+    "lat": 40.416949188805,
+    "lng": -3.7037815147436,
+    "city": "Madrid, Spain"
+  },
+  {
+    "imageId": "1219468215561591",
+    "lat": 48.207169530625,
+    "lng": 16.376785062247,
+    "city": "Vienna, Austria"
+  },
+  {
+    "imageId": "670872271631887",
+    "lat": 55.67602247121,
+    "lng": 12.568284027834,
+    "city": "Copenhagen, Denmark"
+  },
+  {
+    "imageId": "113959357690862",
+    "lat": 59.914092068741,
+    "lng": 10.752003499947,
+    "city": "Oslo, Norway"
+  },
+  {
+    "imageId": "1620839505509741",
+    "lat": 60.169770829598,
+    "lng": 24.938444496099,
+    "city": "Helsinki, Finland"
+  },
+  {
+    "imageId": "303448011404373",
+    "lat": 64.148336162856,
+    "lng": -21.940714375092,
+    "city": "Reykjavik, Iceland"
+  },
+  {
+    "imageId": "452140390523443",
+    "lat": 38.725289882286,
+    "lng": -9.1404956847602,
+    "city": "Lisbon, Portugal"
+  },
+  {
+    "imageId": "1412358513579096",
+    "lat": 37.983700757783,
+    "lng": 23.727511769465,
+    "city": "Athens, Greece"
+  },
+  {
+    "imageId": "1113388137455260",
+    "lat": 50.075496151239,
+    "lng": 14.437490295867,
+    "city": "Prague, Czechia"
+  },
+  {
+    "imageId": "1516061213318841",
+    "lat": 47.495957222433,
+    "lng": 19.038432642413,
+    "city": "Budapest, Hungary"
+  },
+  {
+    "imageId": "838225672498621",
+    "lat": 50.852156421599,
+    "lng": 4.3538804778125,
+    "city": "Brussels, Belgium"
+  },
+  {
+    "imageId": "822496791976791",
+    "lat": 47.378765299042,
+    "lng": 8.5435529952798,
+    "city": "Zurich, Switzerland"
+  },
+  {
+    "imageId": "708652108186517",
+    "lat": 43.653215510602,
+    "lng": -79.382737604253,
+    "city": "Toronto, Canada"
+  },
+  {
+    "imageId": "1196533361792578",
+    "lat": 49.282260581564,
+    "lng": -123.12015254349,
+    "city": "Vancouver, Canada"
+  },
+  {
+    "imageId": "675794318154836",
+    "lat": 45.501760343145,
+    "lng": -73.567555756169,
+    "city": "Montreal, Canada"
+  },
+  {
+    "imageId": "2256630814798343",
+    "lat": 37.776819413688,
+    "lng": -122.41737890258,
+    "city": "San Francisco, USA"
+  },
+  {
+    "imageId": "1078794751547419",
+    "lat": 34.054154397084,
+    "lng": -118.24183095098,
+    "city": "Los Angeles, USA"
+  },
+  {
+    "imageId": "1042976361877256",
+    "lat": 41.8780985277,
+    "lng": -87.630516126662,
+    "city": "Chicago, USA"
+  },
+  {
+    "imageId": "166488052056681",
+    "lat": 25.76168601121,
+    "lng": -80.191736947279,
+    "city": "Miami, USA"
+  },
+  {
+    "imageId": "1373737833980053",
+    "lat": 47.60823449031,
+    "lng": -122.33046970232,
+    "city": "Seattle, USA"
+  },
+  {
+    "imageId": "1348531980243926",
+    "lat": 21.304407233354,
+    "lng": -157.8606512599,
+    "city": "Honolulu, Hawaii, USA"
+  },
+  {
+    "imageId": "1905261316952832",
+    "lat": -23.5500928,
+    "lng": -46.6331078,
+    "city": "Sao Paulo, Brazil"
+  },
+  {
+    "imageId": "1730892157746656",
+    "lat": -34.603652377556,
+    "lng": -58.381617512176,
+    "city": "Buenos Aires, Argentina"
+  },
+  {
+    "imageId": "990920859541401",
+    "lat": -33.447030373481,
+    "lng": -70.667529857941,
+    "city": "Santiago, Chile"
+  },
+  {
+    "imageId": "8816556945092362",
+    "lat": -12.048349615475,
+    "lng": -77.044767544878,
+    "city": "Lima, Peru"
+  },
+  {
+    "imageId": "3515603368620331",
+    "lat": 4.7129634372008,
+    "lng": -74.070379708109,
+    "city": "Bogota, Colombia"
+  },
+  {
+    "imageId": "575133787958740",
+    "lat": 35.673842936296,
+    "lng": 139.64815178503,
+    "city": "Tokyo, Japan"
+  },
+  {
+    "imageId": "974060361860781",
+    "lat": 35.010634714519,
+    "lng": 135.77135307219,
+    "city": "Kyoto, Japan"
+  },
+  {
+    "imageId": "526362790074448",
+    "lat": 37.568325,
+    "lng": 126.9797528,
+    "city": "Seoul, South Korea"
+  },
+  {
+    "imageId": "702911985871740",
+    "lat": 25.032924700575,
+    "lng": 121.56548390001,
+    "city": "Taipei, Taiwan"
+  },
+  {
+    "imageId": "894504687767671",
+    "lat": 13.756343170127,
+    "lng": 100.50180090596,
+    "city": "Bangkok, Thailand"
+  },
+  {
+    "imageId": "837806678998050",
+    "lat": -6.2111139071678,
+    "lng": 106.84329533289,
+    "city": "Jakarta, Indonesia"
+  },
+  {
+    "imageId": "832869822032147",
+    "lat": 14.601532799972,
+    "lng": 120.98636469997,
+    "city": "Manila, Philippines"
+  },
+  {
+    "imageId": "1170640956714138",
+    "lat": 25.204730323319,
+    "lng": 55.27079196684,
+    "city": "Dubai, UAE"
+  },
+  {
+    "imageId": "859622383072103",
+    "lat": -36.850560514457,
+    "lng": 174.76156423872,
+    "city": "Auckland, New Zealand"
+  },
+  {
+    "imageId": "284750911299292",
+    "lat": 35.659446371025,
+    "lng": 139.70018640203,
+    "city": "Tokyo Shibuya, Japan"
+  },
+  {
+    "imageId": "1182439644069731",
+    "lat": 34.668843353325,
+    "lng": 135.50137348103,
+    "city": "Osaka Dotonbori, Japan"
+  },
+  {
+    "imageId": "838179692580185",
+    "lat": 35.003722877686,
+    "lng": 135.7774591243,
+    "city": "Kyoto Gion, Japan"
+  },
+  {
+    "imageId": "583962374468220",
+    "lat": 43.060239541379,
+    "lng": 141.35362168997,
+    "city": "Sapporo Odori, Japan"
+  },
+  {
+    "imageId": "142648824920785",
+    "lat": 34.395465992162,
+    "lng": 132.45332149264,
+    "city": "Hiroshima Peace Park, Japan"
+  },
+  {
+    "imageId": "824422745155668",
+    "lat": -42.882059654414,
+    "lng": 147.3309958996,
+    "city": "Hobart Waterfront, Tasmania"
+  },
+  {
+    "imageId": "1292638775747599",
+    "lat": 53.274266126067,
+    "lng": -9.0492556677529,
+    "city": "Galway Eyre Square, Ireland"
+  },
+  {
+    "imageId": "829689959069238",
+    "lat": 51.450029583682,
+    "lng": -2.5967565006603,
+    "city": "Bristol Harbourside, UK"
+  },
+  {
+    "imageId": "1183529955765464",
+    "lat": 43.295168810699,
+    "lng": 5.3743481187172,
+    "city": "Marseille Vieux-Port, France"
+  },
+  {
+    "imageId": "392726821717217",
+    "lat": 44.84137024864,
+    "lng": -0.56915386767377,
+    "city": "Bordeaux Place de la Bourse, France"
+  },
+  {
+    "imageId": "941692761934643",
+    "lat": 37.376852777778,
+    "lng": -5.9868888888889,
+    "city": "Seville Plaza de Espana, Spain"
+  },
+  {
+    "imageId": "274253254409867",
+    "lat": 37.177230911186,
+    "lng": -3.5990398468634,
+    "city": "Granada Alhambra, Spain"
+  },
+  {
+    "imageId": "329781072505471",
+    "lat": 41.140775661524,
+    "lng": -8.6096417653121,
+    "city": "Porto Dom Luis Bridge, Portugal"
+  },
+  {
+    "imageId": "716709207394476",
+    "lat": 45.464189745965,
+    "lng": 9.1901443634759,
+    "city": "Milan Duomo, Italy"
+  },
+  {
+    "imageId": "189707163578965",
+    "lat": 43.772730374711,
+    "lng": 11.255777978157,
+    "city": "Florence Duomo, Italy"
+  },
+  {
+    "imageId": "674842725588897",
+    "lat": 45.434227470599,
+    "lng": 12.338674863799,
+    "city": "Venice San Marco, Italy"
+  },
+  {
+    "imageId": "1458043265268575",
+    "lat": 40.851645386456,
+    "lng": 14.26763373786,
+    "city": "Naples Spaccanapoli, Italy"
+  },
+  {
+    "imageId": "1390021398702837",
+    "lat": 45.070336365087,
+    "lng": 7.6869848889146,
+    "city": "Turin Piazza Castello, Italy"
+  },
+  {
+    "imageId": "739268389063836",
+    "lat": 48.137104504078,
+    "lng": 11.575992843386,
+    "city": "Munich Marienplatz, Germany"
+  },
+  {
+    "imageId": "3910326832394535",
+    "lat": 50.940859616479,
+    "lng": 6.9586049770087,
+    "city": "Cologne Cathedral, Germany"
+  },
+  {
+    "imageId": "672667392224843",
+    "lat": 51.051918798989,
+    "lng": 13.741111162251,
+    "city": "Dresden Frauenkirche, Germany"
+  },
+  {
+    "imageId": "401344906229787",
+    "lat": 51.909000629956,
+    "lng": 4.4868494016494,
+    "city": "Rotterdam Erasmus Bridge, Netherlands"
+  },
+  {
+    "imageId": "1266277478827069",
+    "lat": 51.221260231225,
+    "lng": 4.3998253221978,
+    "city": "Antwerp Grote Markt, Belgium"
+  },
+  {
+    "imageId": "511765221228659",
+    "lat": 51.208672628091,
+    "lng": 3.2238997847795,
+    "city": "Bruges Belfry, Belgium"
+  },
+  {
+    "imageId": "1620949364782487",
+    "lat": 46.204273111735,
+    "lng": 6.1431806450517,
+    "city": "Geneva Lake, Switzerland"
+  },
+  {
+    "imageId": "1560396771898533",
+    "lat": 47.799348665294,
+    "lng": 13.043978165217,
+    "city": "Salzburg Old Town, Austria"
+  },
+  {
+    "imageId": "1942575666588230",
+    "lat": 47.26927517651,
+    "lng": 11.393673458291,
+    "city": "Innsbruck Golden Roof, Austria"
+  },
+  {
+    "imageId": "870538127137671",
+    "lat": 50.061433859776,
+    "lng": 19.937789860955,
+    "city": "Krakow Main Square, Poland"
+  },
+  {
+    "imageId": "258445626843539",
+    "lat": 57.701271649159,
+    "lng": 11.973837852043,
+    "city": "Gothenburg Avenyn, Sweden"
+  },
+  {
+    "imageId": "355476670540580",
+    "lat": 63.426662462537,
+    "lng": 10.396955322136,
+    "city": "Trondheim Nidaros, Norway"
+  },
+  {
+    "imageId": "997588769998021",
+    "lat": 40.626572354413,
+    "lng": 22.948600193283,
+    "city": "Thessaloniki White Tower, Greece"
+  },
+  {
+    "imageId": "1221903450140655",
+    "lat": 32.787927610173,
+    "lng": -96.798020766603,
+    "city": "Dallas Arts District, Texas, USA"
+  },
+  {
+    "imageId": "1194085628237971",
+    "lat": 33.760203564885,
+    "lng": -84.393568146131,
+    "city": "Atlanta Centennial Park, Georgia, USA"
+  },
+  {
+    "imageId": "738453965581537",
+    "lat": 39.748673430326,
+    "lng": -104.9943187217,
+    "city": "Denver 16th St Mall, Colorado, USA"
+  },
+  {
+    "imageId": "906326565221589",
+    "lat": 33.458696217652,
+    "lng": -112.06850901521,
+    "city": "Phoenix Roosevelt Row, Arizona, USA"
+  },
+  {
+    "imageId": "1283995009901673",
+    "lat": 42.331762955358,
+    "lng": -83.047059424602,
+    "city": "Detroit Campus Martius, Michigan, USA"
+  },
+  {
+    "imageId": "800159907562931",
+    "lat": 21.134772706958,
+    "lng": -86.755138073153,
+    "city": "Cancun Boulevard Kukulcan, Mexico"
+  },
+  {
+    "imageId": "2188765034954898",
+    "lat": -33.047279599246,
+    "lng": -71.612742728676,
+    "city": "Valparaiso Funiculars, Chile"
+  }
+]

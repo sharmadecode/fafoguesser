@@ -6,9 +6,8 @@ import { Server } from "socket.io";
 import { ENV } from "./config.js";
 import { initLocationPool } from "./locations.js";
 import { getPanorama, resolveKey } from "./panoProxy.js";
-import { initDb, topScores } from "./db.js";
 import { rateLimit } from "./rateLimit.js";
-import { registerSocketHandlers } from "./events.js";
+import { isTrustedProxy, registerSocketHandlers } from "./events.js";
 import { MatchRegistry } from "./registry.js";
 import { MatchmakingService } from "./matchmaking.js";
 import { RoomService } from "./rooms.js";
@@ -42,19 +41,16 @@ export function buildServices(io: Server) {
 }
 
 export function startServer(port: number): RunningServer {
-  initDb();
   initLocationPool(); // pre-warm panoramas so the first round starts instantly
 
   const app = express();
-  // No body parser: every REST route is GET (health/leaderboard/pano), so
-  // express.json() would only parse bodies that never arrive (waste + a small
-  // large-body DoS surface). trust proxy lets Express resolve req.ip correctly
-  // behind Render's LB (rightmost X-Forwarded-For) for the pano rate limit.
-  app.set("trust proxy", ENV.NODE_ENV === "production" ? 1 : false);
+  // No body parser: every REST route is GET (health/pano), and XFF is only
+  // honored for proxies allowlisted in PROXY_TRUST — otherwise the socket
+  // peer address is the client.
+  app.set("trust proxy", (ip: string) => isTrustedProxy(ip, ENV.PROXY_TRUST));
 
-  // Minimal security headers for the small REST surface (health/leaderboard/
-  // pano proxy). The API serves only JSON + images, so a lock-tight CSP is
-  // safe; HSTS only makes sense once the server is served over TLS (prod).
+  // Security headers for a JSON + image-only surface; HSTS only makes sense
+  // once prod serves over TLS.
   app.use((_req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
@@ -71,39 +67,66 @@ export function startServer(port: number): RunningServer {
     res.json({ ok: true, uptime: process.uptime() });
   });
 
-  app.get("/api/leaderboard", (_req, res) => {
-    // Allow the web frontend (separate origin) to read the board.
-    const origin = _req.headers.origin;
-    if (origin && ENV.CORS_ORIGINS.includes(origin)) {
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  app.use("/api/pano", (req, res, next) => {
+    const origin = req.headers.origin;
+    const isAllowed =
+      !origin ||
+      !ENV.IS_PRODUCTION ||
+      ENV.CORS_ORIGINS.includes("*") ||
+      (typeof origin === "string" && ENV.CORS_ORIGINS.includes(origin));
+    if (isAllowed && origin) {
       res.setHeader("Access-Control-Allow-Origin", origin);
+    } else if (!ENV.IS_PRODUCTION) {
+      res.setHeader("Access-Control-Allow-Origin", "*");
     }
-    res.setHeader("Cache-Control", "no-store");
-    res.json({ scores: topScores(20) });
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS, HEAD");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    if (req.method === "OPTIONS") {
+      res.sendStatus(204);
+      return;
+    }
+    next();
   });
 
-  // Panorama bytes behind an opaque per-round key. The image id never leaves
-  // the server, so clients can't derive coordinates. CORS is open because the
-  // bytes are only reachable with a key handed to match players.
   app.get("/api/pano/:key", async (req, res) => {
-    // Per-IP cap so a key holder can't burn Mapillary quota via cold misses.
+    const rawKey = String(req.params.key ?? "");
+    if (!UUID_RE.test(rawKey)) {
+      res.status(400).json({ error: "invalid_key" });
+      return;
+    }
     if (!rateLimit(req.ip ?? "", "pano", 30, 60_000)) {
+      console.warn(`[PANO_REQUEST] rate limited IP=${req.ip}`);
       res.status(429).json({ error: "rate_limited" });
       return;
     }
-    const imageId = resolveKey(req.params.key ?? "");
+    const imageId = resolveKey(rawKey);
     if (!imageId) {
       res.status(404).json({ error: "pano_not_found" });
       return;
     }
-    const img = await getPanorama(imageId);
-    if (!img) {
-      res.status(502).json({ error: "upstream_unavailable" });
-      return;
+    // Backstop: a hung upstream must not tie up the request forever. The
+    // fetch keeps running and caches its result if it eventually lands.
+    const variant = req.query.size === "2048" ? "2048" : "original";
+    let backstopTimer: NodeJS.Timeout | undefined;
+    try {
+      const img = await Promise.race([
+        getPanorama(imageId, variant),
+        new Promise<null>((resolve) => {
+          backstopTimer = setTimeout(() => resolve(null), 55_000);
+        }),
+      ]);
+      if (!img) {
+        res.status(502).json({ error: "upstream_unavailable" });
+        return;
+      }
+      res.setHeader("Content-Type", img.contentType);
+      res.setHeader("Cache-Control", "private, max-age=60");
+      res.send(img.buf);
+    } finally {
+      if (backstopTimer) clearTimeout(backstopTimer);
     }
-    res.setHeader("Content-Type", img.contentType);
-    res.setHeader("Cache-Control", "private, max-age=60");
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.send(img.buf);
   });
 
   const server = http.createServer(app);
@@ -112,6 +135,7 @@ export function startServer(port: number): RunningServer {
       origin(origin, cb) {
         if (
           !origin ||
+          ENV.NODE_ENV === "development" ||
           ENV.CORS_ORIGINS.includes("*") ||
           ENV.CORS_ORIGINS.includes(origin)
         ) {
@@ -130,7 +154,7 @@ export function startServer(port: number): RunningServer {
   const sweepTimer = setInterval(() => services.registry.sweep(), 5_000);
   sweepTimer.unref();
 
-  server.listen(port);
+  server.listen(port, "0.0.0.0");
   return { io, server, app, services };
 }
 

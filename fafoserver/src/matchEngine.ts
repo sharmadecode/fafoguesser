@@ -1,14 +1,14 @@
-﻿import { GAME } from "./config.js";
+import { GAME, ENV } from "./config.js";
 import { pickRandomLocation, PickedLocation } from "./locations.js";
-import { mintKey, warmPanorama } from "./panoProxy.js";
+import { mintKey, warmPanorama, warmPanoramaVerified, evictPano } from "./panoProxy.js";
 import { haversineM, pointsForDistance } from "./scoring.js";
-import { saveMatchResult } from "./db.js";
 import type {
   FinalRank,
   IntermissionPayload,
   MatchSnapshot,
   PlayerPublic,
   RoundRevealPayload,
+  RoundStartPayload,
 } from "./types.js";
 
 export interface ServerIO {
@@ -59,6 +59,10 @@ export class Match {
   private panoKey: string | null = null;
   private timer: NodeJS.Timeout | null = null;
   private warmNext: Promise<PickedLocation> | null = null;
+  /** Consecutive auto-restarts with an unchanged roster — the same tiny group
+   *  restarting forever would burn panos and match slots, so dissolve it. */
+  private restartCount = 0;
+  private restartRoster = "";
   private readonly io: ServerIO;
 
   constructor(opts: MatchOptions) {
@@ -82,6 +86,11 @@ export class Match {
 
   get isFull(): boolean {
     return this.players.size >= GAME.MAX_PLAYERS;
+  }
+
+  /** True when at least one player holds a live socket (any live body). */
+  private anyConnected(): boolean {
+    return [...this.players.values()].some((p) => p.connected);
   }
 
   get publicPlayers(): PlayerPublic[] {
@@ -140,7 +149,10 @@ export class Match {
     const p = this.players.get(nickname);
     if (!p) return;
     if (this.mode === "room" && this.hostNickname === nickname) {
-      const next = [...this.players.values()].find((q) => q.nickname !== nickname);
+      // Hand the host role to the first still-connected player; only fall
+      // back to a disconnected one (or nobody) if every other player is gone.
+      const others = [...this.players.values()].filter((q) => q.nickname !== nickname);
+      const next = others.find((q) => q.connected) ?? others[0];
       this.hostNickname = next?.nickname ?? null;
     }
     this.players.delete(nickname);
@@ -157,6 +169,16 @@ export class Match {
     if (!p) return;
     p.connected = false;
     p.disconnectedAt = Date.now();
+    // A host vanishing stalls the game — in the lobby guests can't start, in
+    // a running match the room start is not needed but later rounds/restart
+    // still route through the host. Hand the room over to a connected player
+    // immediately in ANY phase; only fall back to a disconnected one if every
+    // other player is gone.
+    if (this.mode === "room" && this.hostNickname === nickname) {
+      const others = [...this.players.values()].filter((q) => q.nickname !== nickname);
+      const next = others.find((q) => q.connected) ?? others[0];
+      if (next) this.hostNickname = next.nickname;
+    }
     this.emitToMatch("player.updated", {
       nickname,
       score: p.score,
@@ -192,6 +214,16 @@ export class Match {
     return true;
   }
 
+  /** True when the record holds the given credential but its reconnect window
+   *  has already closed — the legitimate owner may start fresh instead of
+   *  being locked out of their nickname forever by a zombie record. */
+  windowExpiredFor(nickname: string, sessionId: string | null): boolean {
+    const p = this.players.get(nickname);
+    if (!p || p.connected || !sessionId || !p.disconnectedAt) return false;
+    if (p.sessionId && p.sessionId !== sessionId) return false;
+    return Date.now() - p.disconnectedAt > GAME.RECONNECT_WINDOW_MS;
+  }
+
   /** Record the device credential on the player record (first join only). */
   claimSession(nickname: string, sessionId: string): void {
     const p = this.players.get(nickname);
@@ -224,7 +256,7 @@ export class Match {
   /**
    * Push a fresh, per-player snapshot to every player in the match. Called
    * after a round starts so ALL clients (host + guests, incl. late joiners)
-   * flip to phase=playing and become pickable â€” previously only the host
+   * flip to phase=playing and become pickable — previously only the host
    * received the playing snapshot on room start.
    */
   broadcastSnapshots(): void {
@@ -254,10 +286,32 @@ export class Match {
       location = { imageId: "test-loc-1", lat: 0, lng: 0 };
     }
     if (this.destroyed) return;
+    // Never begin a round on an image the proxy can't serve: verify the bytes
+    // are fetchable (bounded — ~3.5s per attempt, 2 attempts) and re-pick on
+    // failure. If every attempt fails the round still starts with the last
+    // pick (graceful degradation) rather than dying on the picker. Skipped
+    // without MAPILLARY_TOKEN: dev/test placeholder images are knowingly
+    // unservable and there is nothing real to verify.
+    if (ENV.MAPILLARY_TOKEN) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (await warmPanoramaVerified(location.imageId, 3_500)) break;
+        console.warn(`[match] pano unfetchable, re-picking (attempt ${attempt + 1})`);
+        try {
+          location = await pickRandomLocation();
+        } catch {
+          break;
+        }
+      }
+    }
+    if (this.destroyed) return;
+    // Evict previous round's cached panorama bytes now that the new round is starting.
+    if (this.location?.imageId && this.location.imageId !== location.imageId) {
+      evictPano(this.location.imageId);
+    }
     this.location = location;
-    // Mint an opaque panorama key (clients never see the image id) and start
-    // fetching the bytes so the first viewer request is served from cache.
     this.panoKey = mintKey(location.imageId);
+    // Start fetching the bytes now (single-flight; the verify above likely
+    // already warmed them) so the first client request is instant.
     warmPanorama(location.imageId);
     for (const p of this.players.values()) {
       p.guessed = false;
@@ -265,28 +319,27 @@ export class Match {
     }
     const endAt = Date.now() + GAME.ROUND_DURATION_MS;
     this.roundEndsAt = endAt;
-    this.emitToMatch("round.start", {
+    const startPayload: RoundStartPayload = {
       round,
       roundEndsAt: endAt,
       durationMs: GAME.ROUND_DURATION_MS,
       panorama: { key: this.panoKey },
-    });
+    };
+    this.emitToMatch("round.start", startPayload);
     this.schedule(endAt, () => this.finishRound());
-    if (round + 1 < GAME.ROUNDS_PER_MATCH) {
-      this.warmNext = pickRandomLocation();
-      this.emitNextPanorama(this.warmNext);
-    }
   }
 
-  // Let clients preload the NEXT round's panorama while the current round is
-  // still playing, so the round transition shows the image instantly instead
-  // of a multi-second loading state. Fires whenever the pick resolves.
-  private emitNextPanorama(pick: Promise<PickedLocation>): void {
-    void pick
-      .then((loc) => {
-        if (this.destroyed) return;
-        this.emitToMatch("next.panorama", { key: mintKey(loc.imageId) });
-      })
+  // Pre-pick + warm the NEXT round's panorama during the pause, so the next
+  // beginRound is instant and the bytes are cached server-side. The pano KEY
+  // (and thus the location) is only ever handed out at round.start — clients
+  // can never fetch the next location before its round begins (the old
+  // next.panorama preload let them, which leaked the next location's key
+  // during the reveal pause; the server-side warm makes the client preload
+  // redundant anyway).
+  private prepareNextRound(): void {
+    this.warmNext = pickRandomLocation();
+    void this.warmNext
+      .then((loc) => warmPanorama(loc.imageId))
       .catch(() => {});
   }
 
@@ -323,6 +376,12 @@ export class Match {
   private finishRound(): void {
     if (this.destroyed || this.phase !== "playing") return;
     this.clearTimer();
+    // Every player dropped mid-round — the match is a zombie. Skip reveal and
+    // next-round work; the registry sweep removes the destroyed match shortly.
+    if (!this.anyConnected()) {
+      this.destroy();
+      return;
+    }
     const location = this.location!;
     const roster = [...this.players.values()];
     const distances = roster.map((p) =>
@@ -331,7 +390,7 @@ export class Match {
         : null,
     );
     // Distance-percentage: every guess scores independently
-    // (1000 at 0 km â†’ 0 at 4,000 km); abstaining earns 0.
+    // (1000 at 0 m → POINTS_MIN at the max ~20,037 km away); abstaining earns 0.
     const results = roster
       .map((p, i) => {
         const distanceM = distances[i];
@@ -347,7 +406,7 @@ export class Match {
           color: p.color,
         };
       })
-      .sort((a, b) => b.points - a.points);
+      .sort((a, b) => b.total - a.total || b.points - a.points);
     const payload: RoundRevealPayload = {
       round: this.round,
       location: { lat: location.lat, lng: location.lng },
@@ -361,11 +420,15 @@ export class Match {
           nickname: r.nickname,
           score: r.total,
           guessed: p.guessed,
+          host: this.hostNickname,
           players: this.publicPlayers,
         });
       }
     }
     if (this.round + 1 < GAME.ROUNDS_PER_MATCH) {
+      // Pre-pick + warm the next panorama at reveal time (never mid-round,
+      // so the next location can't be studied early).
+      this.prepareNextRound();
       this.schedule(Date.now() + GAME.ROUND_PAUSE_MS, () => void this.beginRound(this.round + 1));
     } else {
       // Final round: still show the actual-location reveal for the full pause
@@ -377,13 +440,20 @@ export class Match {
 
   private async startIntermission(): Promise<void> {
     if (this.destroyed) return;
+    // All players dropped before the final reveal — no one is left to see the
+    // leaderboard, so destroy instead of scheduling a zombie restart.
+    if (!this.anyConnected()) {
+      this.destroy();
+      return;
+    }
+    // Evict the final round's cached panorama bytes before intermission.
+    if (this.location?.imageId) {
+      evictPano(this.location.imageId);
+    }
     this.phase = "intermission";
     const ranks: FinalRank[] = [...this.players.values()]
       .map((p) => ({ nickname: p.nickname, score: p.score }))
       .sort((a, b) => b.score - a.score);
-    for (const p of this.players.values()) {
-      saveMatchResult(p.nickname, p.score, this.mode, this.matchNumber);
-    }
     const endAt = Date.now() + GAME.INTERMISSION_MS;
     this.intermissionEndsAt = endAt;
     const payload: IntermissionPayload = {
@@ -394,13 +464,33 @@ export class Match {
     };
     this.emitToMatch("intermission.start", payload);
     // Warm the first round of the next match during the 20s intermission.
-    this.warmNext = pickRandomLocation();
-    this.emitNextPanorama(this.warmNext);
-    this.schedule(endAt, () => void this.restartMatch());
+    this.prepareNextRound();
+    this.schedule(endAt, () => void this.restartMatch().catch(() => {}));
   }
 
   private async restartMatch(): Promise<void> {
     if (this.destroyed) return;
+    // Nobody reconnected during the intermission — destroy instead of
+    // auto-restarting a zombie match.
+    if (!this.anyConnected()) {
+      this.destroy();
+      return;
+    }
+    // The same tiny roster auto-restarting forever burns panos and match
+    // slots (queue poisoning for fresh quick players). After 3 consecutive
+    // restarts without roster growth, dissolve the match so the players
+    // re-enter matchmaking fresh.
+    const roster = [...this.players.keys()].sort().join(",");
+    if (roster === this.restartRoster) {
+      this.restartCount++;
+    } else {
+      this.restartRoster = roster;
+      this.restartCount = 0;
+    }
+    if (this.restartCount > 3 && this.players.size <= 2) {
+      this.destroy();
+      return;
+    }
     this.matchNumber += 1;
     this.round = 0;
     this.intermissionEndsAt = null;
@@ -410,6 +500,10 @@ export class Match {
       p.guess = null;
     }
     await this.beginRound(0);
+    // Re-sync every player's snapshot so clients that joined mid-intermission
+    // flip phase back to "playing" (their pre-restart snapshot said
+    // "intermission" and would otherwise keep them un-pickable forever).
+    this.broadcastSnapshots();
   }
 
   private schedule(at: number, fn: () => void): void {
@@ -428,6 +522,9 @@ export class Match {
     if (this.destroyed) return;
     this.destroyed = true;
     this.clearTimer();
+    if (this.location?.imageId) {
+      evictPano(this.location.imageId);
+    }
     // Tell anyone still attached (e.g. an expired waiting lobby) to bail out.
     this.emitToMatch("match.left", {});
   }

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -168,7 +169,7 @@ private fun TopBar(vm: GameViewModel, inLobby: Boolean) {
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            if (inLobby) "LOBBY" else "ROUND ${vm.round}/${vm.snapshot?.roundCount ?: 5}",
+            if (inLobby) "LOBBY" else "ROUND ${vm.round + 1}/${vm.snapshot?.roundCount ?: 5}",
             color = TextMuted,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace,
@@ -232,75 +233,122 @@ private fun Footer(vm: GameViewModel) {
     }
 }
 
+private fun formatDistance(m: Double?): String {
+    if (m == null || !m.isFinite()) return "–"
+    if (m < 1000) return "${m.roundToLong()}m"
+    val km = m / 1000.0
+    return if (km >= 100) "${km.roundToLong()}km" else "%.1fkm".format(km)
+}
+
 @Composable
 private fun ScorePanel(vm: GameViewModel) {
     val reveal = vm.reveal
-    // Reveal sequence: the location (truth pin + fly-to) shows first, the
-    // per-player results only appear 4s later (web parity).
-    var showResults by remember(reveal) { mutableStateOf(reveal == null) }
-    LaunchedEffect(reveal) {
-        if (reveal != null) {
-            showResults = false
-            delay(4000)
-            showResults = true
-        }
-    }
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text("SCORES", color = TextMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-        Spacer(Modifier.height(4.dp))
-        LazyColumn(modifier = Modifier.height(140.dp)) {
-            items(vm.players.sortedByDescending { it.score }, key = { it.nickname }) { p ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp)
-                        .background(if (p.nickname == vm.nickname) Green.copy(alpha = 0.12f) else Panel, RoundedCornerShape(8.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(
-                        Modifier.size(10.dp).background(parseHexColor(p.color), CircleShape),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(p.nickname, color = if (p.nickname == vm.nickname) Green else Cream, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                    if (p.guessed && reveal == null) {
-                        Text(" ●", color = Amber, fontSize = 10.sp)
-                    }
-                    if (!p.connected) {
-                        Text(" (offline)", color = TextMuted, fontSize = 11.sp)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Text("${p.score}", color = Cream, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                }
-            }
-            if (reveal != null && showResults) {
-                item {
-                    Spacer(Modifier.height(6.dp))
-                    Text("ROUND ${reveal.round} · REVEAL", color = Amber, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-                }
-                items(reveal.results, key = { it.nickname + it.total }) { r ->
+        if (reveal != null) {
+            Text(
+                "ROUND ${reveal.round + 1} · RESULTS",
+                color = Amber,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(4.dp))
+            LazyColumn(modifier = Modifier.height(140.dp)) {
+                itemsIndexed(reveal.results, key = { _, it -> it.nickname + it.total }) { i, r ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp)
+                            .background(
+                                if (r.nickname == vm.nickname) Green.copy(alpha = 0.15f) else Panel,
+                                RoundedCornerShape(8.dp),
+                            )
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        Text(
+                            "${i + 1}",
+                            color = TextMuted,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.width(18.dp),
+                        )
                         Box(
                             Modifier.size(10.dp).background(parseHexColor(r.color), CircleShape),
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            r.nickname,
+                            r.nickname + if (r.nickname == vm.nickname) " (you)" else "",
                             color = if (r.nickname == vm.nickname) Green else Cream,
-                            fontWeight = if (r.nickname == vm.nickname) FontWeight.Bold else FontWeight.Normal,
+                            fontWeight = if (r.nickname == vm.nickname) FontWeight.Bold else FontWeight.Medium,
                             fontSize = 13.sp,
                             modifier = Modifier.weight(1f),
                         )
                         Text(
-                            " +${r.points}",
-                            color = Amber,
+                            formatDistance(r.distanceM),
+                            color = TextMuted,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(end = 12.dp),
+                        )
+                        Text(
+                            "${r.total}",
+                            color = Cream,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                        )
+                    }
+                }
+            }
+        } else {
+            Text("SCORES", color = TextMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            Spacer(Modifier.height(4.dp))
+            LazyColumn(modifier = Modifier.height(140.dp)) {
+                itemsIndexed(vm.players.sortedByDescending { it.score }, key = { _, it -> it.nickname }) { i, p ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp)
+                            .background(
+                                if (p.nickname == vm.nickname) Green.copy(alpha = 0.12f) else Panel,
+                                RoundedCornerShape(8.dp),
+                            )
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "${i + 1}",
+                            color = TextMuted,
                             fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(start = 10.dp),
+                            modifier = Modifier.width(18.dp),
+                        )
+                        Box(
+                            Modifier.size(10.dp).background(parseHexColor(p.color), CircleShape),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            p.nickname + if (p.nickname == vm.nickname) " (you)" else "",
+                            color = if (p.nickname == vm.nickname) Green else Cream,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                        )
+                        if (p.guessed) {
+                            Text(" ●", color = Amber, fontSize = 10.sp)
+                        }
+                        if (!p.connected) {
+                            Text(" (offline)", color = TextMuted, fontSize = 11.sp)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            "${p.score}",
+                            color = Cream,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
                         )
                     }
                 }

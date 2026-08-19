@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GameClient } from "./net";
-import type { IntermissionPayload, MatchSnapshot, NextPanoramaPayload, PlayerPublic, RoundRevealPayload } from "./types";
+import type { IntermissionPayload, MatchSnapshot, PlayerPublic, RoundRevealPayload } from "./types";
 import { LandingScreen } from "./screens/LandingScreen";
 import { GameScreen } from "./screens/GameScreen";
-import "./index.css";
+import { SERVER_URL } from "./shared";
 
-const SERVER_URL = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? "http://localhost:8787";
 const NICK_KEY = "fafo.nickname";
 const SESS_KEY = "fafo.session";
 
@@ -14,7 +13,11 @@ const SESS_KEY = "fafo.session";
 function deviceSessionId(): string {
   let id = localStorage.getItem(SESS_KEY);
   if (!id) {
-    id = crypto.randomUUID();
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      id = crypto.randomUUID();
+    } else {
+      id = "sess_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
     localStorage.setItem(SESS_KEY, id);
   }
   return id;
@@ -42,6 +45,7 @@ const ERROR_TEXT: Record<string, string> = {
   room_join_failed: "Couldn't join room",
   room_start_failed: "Couldn't start room",
   guess_failed: "Couldn't submit guess",
+  match_gone: "That match ended — try again.",
 };
 
 type Screen = "landing" | "game";
@@ -55,20 +59,37 @@ export default function App() {
   const [nickname, setNickname] = useState(() => localStorage.getItem(NICK_KEY) ?? "");
   const nicknameRef = useRef(nickname);
   nicknameRef.current = nickname;
+  // Whether the server confirmed this nickname on the current socket session.
+  // Auth is async — never emit play before auth.ok, or the server rejects.
+  const authedRef = useRef(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Raw socket state, for the mid-game reconnect banner (set by the
+  // net.ts status callback, which also fires on the initial state).
+  const [connected, setConnected] = useState(true);
 
   const [snapshot, setSnapshot] = useState<MatchSnapshot | null>(null);
   const [panorama, setPanorama] = useState<string | null>(null);
   const [round, setRound] = useState(0);
   const [roundCount, setRoundCount] = useState(5);
   const [roundEndsAt, setRoundEndsAt] = useState<number | null>(null);
-  const [guess, setGuess] = useState<{ lat: number; lng: number } | null>(null);
+  // No guess draft: the dropped pin IS the guess. These track whether the
+  // player actually placed a pin this round (the async world-view reset must
+  // never count as a deliberate guess).
+  const [mapTouchedThisRound, setMapTouchedThisRound] = useState(false);
+  const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null);
+  const pinRef = useRef(pin);
+  // Live-ref mirrors of state the socket handlers need without stale
+  // closures (the listener effect only mounts once).
+  const roundRef = useRef(0);
+  const snapshotRef = useRef<MatchSnapshot | null>(null);
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
   const [submitted, setSubmitted] = useState(false);
   const [reveal, setReveal] = useState<RoundRevealPayload | null>(null);
   const [players, setPlayers] = useState<PlayerPublic[]>([]);
   const [intermission, setIntermission] = useState<IntermissionPayload | null>(null);
-  const [nextPanorama, setNextPanorama] = useState<NextPanoramaPayload | null>(null);
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [host, setHost] = useState<string | null>(null);
   const [mode, setMode] = useState<"quick" | "room">("quick");
@@ -82,16 +103,21 @@ export default function App() {
     const c = client;
     const unsubs = [
       c.on("auth.ok", (p) => {
+        authedRef.current = true;
         localStorage.setItem(NICK_KEY, p.nickname);
         setNickname(p.nickname);
         setError(null);
         setBusy(null);
-        setScreen("landing");
+        // Mid-game reconnects re-auth on the same socket — never bounce a
+        // live round back to the landing screen; the rejoin snapshot owns
+        // the transition. A fresh login has no snapshot and lands on Home.
+        if (!snapshotRef.current) setScreen("landing");
         const act = pendingActionRef.current;
         pendingActionRef.current = null;
         if (act) act();
       }),
       c.on("auth.error", (p) => {
+        authedRef.current = false;
         pendingActionRef.current = null;
         setBusy(null);
         setError(p.message);
@@ -100,7 +126,13 @@ export default function App() {
         setSnapshot(s);
         setMode(s.mode);
         setRoomCode(s.roomCode);
+        // Round-identity snapshot: mid-round snapshots (rejoin after a
+        // reconnect, player join/leave broadcasts) must NOT wipe a placed
+        // pin, the touched flag, or the submitted lock — only an actual
+        // round transition resets the guess state.
+        const sameRound = s.round === roundRef.current;
         setRound(s.round);
+        roundRef.current = s.round;
         setRoundCount(s.roundCount);
         setRoundEndsAt(s.roundEndsAt);
         setHost(s.host);
@@ -108,8 +140,12 @@ export default function App() {
         setPlayers(s.players);
         setIntermission(null);
         setReveal(null);
-        setGuess(null);
-        setSubmitted(false);
+        if (!sameRound) {
+          setPin(null);
+          pinRef.current = null;
+          setMapTouchedThisRound(false);
+          setSubmitted(false);
+        }
         setScreen("game");
         setBusy(null);
         setError(null);
@@ -117,11 +153,13 @@ export default function App() {
       c.on("round.start", (p) => {
         setPanorama(p.panorama.key);
         setRound(p.round);
+        roundRef.current = p.round;
         setRoundEndsAt(p.roundEndsAt);
         setReveal(null);
-        setGuess(null);
+        setPin(null);
+        pinRef.current = null;
+        setMapTouchedThisRound(false);
         setSubmitted(false);
-        setNextPanorama(null);
         // Flip the snapshot to playing so canPick works immediately, even
         // before the post-round snapshot broadcast reaches a room guest.
         setSnapshot((s) =>
@@ -132,7 +170,6 @@ export default function App() {
         setIntermission(null);
       }),
       c.on("round.reveal", (p) => setReveal(p)),
-      c.on("next.panorama", (p) => setNextPanorama(p)),
       c.on("intermission.start", (p) => {
         setIntermission(p);
         setRoundEndsAt(null);
@@ -145,7 +182,14 @@ export default function App() {
         setPlayers(p.players);
         setHost(p.host);
       }),
-      c.on("player.updated", (p) => setPlayers(p.players)),
+      c.on("player.updated", (p) => {
+        setPlayers(p.players);
+        setHost(p.host);
+        // No ack-lock here: the server keeps the LAST pin per round and acks
+        // every move with guessed=true, so locking on this ack would freeze
+        // the pin after the first placement. The pin stays movable until the
+        // buzzer safety fire locks it in.
+      }),
       c.on("match.left", () => {
         setScreen("landing");
         setSnapshot(null);
@@ -153,9 +197,24 @@ export default function App() {
         setReveal(null);
       }),
       c.on("error", (p) => {
+        if (p.code === "not_authed") authedRef.current = false;
+        // A rejected guess must not leave the footer lying "locked in".
+        // Transient rejections (fixable by re-placing/re-emitting) unlock;
+        // terminal ones (the round is over, or the round id mismatches)
+        // keep the lock — unlocking would re-arm the auto-submit into an
+        // instant rejected re-fire loop until the reveal lands.
+        if (
+          p.code === "not_in_match" ||
+          p.code === "invalid_guess" ||
+          p.code === "guess_failed" ||
+          p.code === "not_authed"
+        ) {
+          setSubmitted(false);
+        }
         setError(ERROR_TEXT[p.code] ?? p.code);
         setBusy(null);
       }),
+      client.onStatusChange(setConnected),
     ];
     return () => unsubs.forEach((fn) => fn());
   }, [client]);
@@ -198,16 +257,19 @@ export default function App() {
   };
 
   // The play buttons auth with the typed name and then fire the queued
-  // action — no separate ENTER step, no second page.
+  // action — no separate ENTER step, no second page. The fast path only
+  // fires immediately when the server already confirmed THIS nickname on
+  // the current socket; otherwise the action queues behind the auth round
+  // trip — never emit play before auth.
   const pendingActionRef = useRef<(() => void) | null>(null);
   const ensureAuth = (name: string, action: () => void) => {
     const n = name.trim();
-    if (nickname && nickname === n) {
+    if (nickname && nickname === n && authedRef.current) {
       action();
       return;
     }
     pendingActionRef.current = action;
-    if (nickname) {
+    if (nickname && nickname !== n) {
       // Name changed: the server ignores re-auth on an authed socket, so
       // leave + reconnect as the new name.
       client.emit("leave");
@@ -219,7 +281,9 @@ export default function App() {
   const resetRoundState = () => {
     setPanorama(null);
     setReveal(null);
-    setGuess(null);
+    setPin(null);
+    pinRef.current = null;
+    setMapTouchedThisRound(false);
     setSubmitted(false);
     setRoundEndsAt(null);
   };
@@ -247,18 +311,16 @@ export default function App() {
   };
   const leave = () => client.emit("leave", {});
   const startRoom = () => client.emit("room.start", { code: roomCode });
-  // Dropping a pin only sets a DRAFT — the guess is sent when the user
-  // presses SUBMIT GUESS. The draft can be moved anywhere until then. If the
-  // round ends without submitting, the LAST pin drop auto-submits ~1.5s
-  // before the buzzer, so a forgotten pin never silently scores 0.
-  const pick = (p: { lat: number; lng: number }) => {
+  // Tap/click-to-guess: a placed pin IS the guess on every device — no draft,
+  // no submit button (Android parity). The pin is sent immediately (the
+  // server keeps the LAST pin per round), and the buzzer safety fire below
+  // guarantees the final placement is never silently dropped.
+  const onPinPlace = (c: { lat: number; lng: number }) => {
+    pinRef.current = c;
+    setPin(c);
     if (!canPick) return;
-    setGuess(p);
-  };
-  const submitGuess = () => {
-    if (!guess || !canPick || submitted) return;
-    client.emit("guess", { round, lat: guess.lat, lng: guess.lng });
-    setSubmitted(true);
+    setMapTouchedThisRound(true);
+    client.emit("guess", { round, lat: c.lat, lng: c.lng });
   };
   const canPick =
     !!snapshot &&
@@ -266,7 +328,8 @@ export default function App() {
     !!roundEndsAt &&
     !timeUp &&
     !!panorama &&
-    !submitted;
+    !submitted &&
+    connected;
   // Buzzer: flip timeUp exactly at the server deadline so canPick disables the
   // map at the right moment without a 10×/sec App re-render. roundEndsAt is
   // server epoch ms; convert to a local delay via the clock offset.
@@ -282,15 +345,29 @@ export default function App() {
     return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundEndsAt, client]);
-  // Forgotten-pin auto-submit: if the user pinned but never pressed SUBMIT,
-  // lock their last pin in ~1.5s before the buzzer so it isn't lost. Scheduled
-  // once per round instead of polled every 100ms.
+  // Reconnect flush: if a pin was placed while offline/reconnecting, flush it
+  // as soon as connection is restored and the round is still actively accepting picks.
   useEffect(() => {
-    if (!roundEndsAt || submitted || !guess || reveal || !canPick) return;
+    if (connected && canPick && pinRef.current && !submitted && mapTouchedThisRound) {
+      client.emit("guess", { round, lat: pinRef.current.lat, lng: pinRef.current.lng });
+    }
+  }, [connected, canPick, round, submitted, mapTouchedThisRound, client]);
+
+  // Pin auto-submit safety: each placement already emits immediately, but if
+  // the buzzer is about to fire and the player's LAST pin was never acked
+  // (offline flush, race), lock in whatever pin is current ~1.5s before the
+  // deadline so a placed guess never silently scores 0. Keyed on `pin` so a
+  // move reschedules it; `fire()` always reads pinRef.current — never a
+  // stale capture.
+  useEffect(() => {
+    if (!roundEndsAt || submitted || !mapTouchedThisRound || reveal || !canPick) return;
+    if (!pinRef.current) return;
     const fireAt = roundEndsAt - 1500; // server epoch
     const delay = fireAt - client.serverNow();
     const fire = () => {
-      client.emit("guess", { round, lat: guess.lat, lng: guess.lng });
+      const latest = pinRef.current;
+      if (!latest) return;
+      client.emit("guess", { round, lat: latest.lat, lng: latest.lng });
       setSubmitted(true);
     };
     if (delay <= 0) {
@@ -300,7 +377,7 @@ export default function App() {
     const id = window.setTimeout(fire, delay);
     return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roundEndsAt, submitted, guess, reveal, canPick, client, round]);
+  }, [roundEndsAt, submitted, mapTouchedThisRound, reveal, canPick, client, round, pin]);
 
   if (screen === "landing") {
     return (
@@ -317,6 +394,7 @@ export default function App() {
   return (
     <GameScreen
       nickname={nickname}
+      phase={snapshot?.phase ?? "waiting"}
       round={round}
       roundCount={roundCount}
       roomCode={roomCode}
@@ -324,16 +402,16 @@ export default function App() {
       mode={mode}
       panorama={panorama}
       roundEndsAt={roundEndsAt}
+      intermissionEndsAt={snapshot?.intermissionEndsAt ?? null}
       serverNow={serverNow}
-      guess={guess}
       submitted={submitted}
       reveal={reveal}
       players={players}
       intermission={intermission}
-      nextPanorama={nextPanorama}
       canPick={canPick}
-      onPick={pick}
-      onSubmitGuess={submitGuess}
+      connected={connected}
+      error={error}
+      onPinPlace={onPinPlace}
       onStartRoom={startRoom}
       onLeave={leave}
     />
