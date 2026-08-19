@@ -9,7 +9,7 @@ import type {
 } from "./types";
 
 export interface GameEventMap {
-  "auth.ok": { nickname: string };
+  "auth.ok": { nickname: string; token?: string };
   "auth.error": { message: string };
   "match.snapshot": MatchSnapshot;
   "round.start": RoundStartPayload;
