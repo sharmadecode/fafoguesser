@@ -10,7 +10,7 @@ services:
     rootDir: fafoserver
     runtime: node
     plan: free
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: node dist/index.js
     healthCheckPath: /health
     envVars:
@@ -27,7 +27,7 @@ services:
     name: fafoguesser
     rootDir: web
     runtime: static
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     staticPublishPath: dist
     envVars:
       - key: VITE_SERVER_URL
