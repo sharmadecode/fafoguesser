@@ -7,6 +7,7 @@ import { SERVER_URL } from "./shared";
 
 const NICK_KEY = "fafo.nickname";
 const SESS_KEY = "fafo.session";
+const TOKEN_KEY = "fafo.token";
 
 /** Stable per-device credential, minted once and persisted. Sent with every
  *  auth so the server can verify a rejoin belongs to the same browser. */
@@ -105,6 +106,7 @@ export default function App() {
       c.on("auth.ok", (p) => {
         authedRef.current = true;
         localStorage.setItem(NICK_KEY, p.nickname);
+        if (p.token) localStorage.setItem(TOKEN_KEY, p.token);
         setNickname(p.nickname);
         setError(null);
         setBusy(null);
@@ -247,7 +249,8 @@ export default function App() {
       SERVER_URL,
       () => {
         const n = nicknameRef.current;
-        if (n) client.emit("auth", { nickname: n, sessionId: deviceSessionId() });
+        const token = localStorage.getItem(TOKEN_KEY) || undefined;
+        if (n) client.emit("auth", { nickname: n, sessionId: deviceSessionId(), token });
       },
       (msg) => {
         setBusy(null);
