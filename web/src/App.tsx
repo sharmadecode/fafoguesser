@@ -138,7 +138,11 @@ export default function App() {
         authedRef.current = false;
         pendingActionRef.current = null;
         setBusy(null);
-        setError(p.message);
+        if (p.message === "session_mismatch" || p.message === "already_online") {
+          localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(SESS_KEY);
+        }
+        setError(ERROR_TEXT[p.message] || p.message);
       }),
       c.on("match.snapshot", (s) => {
         setSnapshot(s);

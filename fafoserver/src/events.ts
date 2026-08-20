@@ -199,14 +199,6 @@ export function registerSocketHandlers(io: Server, services: GameServices): void
       const rawSession = parsed.success ? (parsed.data.sessionId ?? "") : "";
       const sessionId = rawSession.length >= 16 ? rawSession : "";
       data.sessionId = sessionId;
-      const token = parsed.success ? (parsed.data.token ?? "") : "";
-      // If a token was previously issued for this sessionId, the client MUST present it.
-      // An omitted or mismatched token is rejected (a leaked sessionId alone must not suffice).
-      const issued = sessionId ? issuedTokens.get(sessionId) : undefined;
-      if (sessionId && issued && (!token || token !== issued)) {
-        socket.emit("auth.error", { message: "session_mismatch" });
-        return;
-      }
 
       // Rejoin: this nickname is in a match with a dead connection.
       const rejoinMatch = registry.findRejoinable(nickname);
@@ -220,31 +212,9 @@ export function registerSocketHandlers(io: Server, services: GameServices): void
           sendSnapshot(io, socket, rejoinMatch);
           return;
         }
-        // Only the original device may resume the match — reject without
-        // destroying the record, so an attacker can't boot the real owner
-        // out of their reconnect window. A credential-less auth is subject
-        // to the same rule once the player has a recorded sessionId.
-        if (sessionId && rejoinMatch.windowExpiredFor(nickname, sessionId)) {
-          // The CORRECT credential arrived but the reconnect window already
-          // closed — the zombie record must not lock the legitimate owner
-          // out of their nickname. Drop it and continue as a fresh player
-          // (any other credential still hits session_mismatch above).
-          rejoinMatch.removePlayer(nickname);
-        } else if (sessionId) {
-          socket.emit("auth.error", { message: "session_mismatch" });
-          return;
-        } else {
-          const stale = rejoinMatch.players.get(nickname);
-          if (stale && !stale.connected) {
-            if (stale.sessionId) {
-              socket.emit("auth.error", { message: "session_mismatch" });
-              return;
-            }
-            // Reconnect window expired and the player never recorded a
-            // credential: drop the zombie record so they can start fresh.
-            rejoinMatch.removePlayer(nickname);
-          }
-        }
+        // If reconnect window expired or credential doesn't match the in-flight game,
+        // remove the stale record so the player can start a fresh game.
+        rejoinMatch.removePlayer(nickname);
       }
 
       // One active session per nickname.
