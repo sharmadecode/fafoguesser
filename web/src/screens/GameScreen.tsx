@@ -91,13 +91,17 @@ export function GameScreen(props: GameScreenProps) {
       )}
       <header className="game-top">
         <div className="game-top-left">
-          <div className={`round-pill ${inLobby ? "round-lobby" : ""}`}>
-            {inLobby ? "LOBBY" : `ROUND ${props.round + 1}/${props.roundCount}`}
-          </div>
-          {props.roomCode && <span className="room-badge">ROOM {props.roomCode}</span>}
+          {!inLobby && (
+            <>
+              <div className="round-pill">
+                {`ROUND ${props.round + 1}/${props.roundCount}`}
+              </div>
+              {props.roomCode && <span className="room-badge">ROOM {props.roomCode}</span>}
+            </>
+          )}
         </div>
         <div className="game-top-right">
-          <TimerPill roundEndsAt={props.roundEndsAt} serverNow={props.serverNow} />
+          {!inLobby && <TimerPill roundEndsAt={props.roundEndsAt} serverNow={props.serverNow} />}
           <button className="leave-btn" onClick={props.onLeave}>
             LEAVE
           </button>
@@ -161,26 +165,44 @@ export function GameScreen(props: GameScreenProps) {
 
 function LobbyBlock(props: GameScreenProps) {
   const isHost = props.host === props.nickname;
-  const [copied, setCopied] = useState(false);
-  const copyTimerRef = useRef<number | null>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const timerCodeRef = useRef<number | null>(null);
+  const timerLinkRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
-      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+      if (timerCodeRef.current) window.clearTimeout(timerCodeRef.current);
+      if (timerLinkRef.current) window.clearTimeout(timerLinkRef.current);
     };
   }, []);
 
-  const copy = async () => {
+  const copyCode = async () => {
+    if (!props.roomCode) return;
+    if (timerCodeRef.current) window.clearTimeout(timerCodeRef.current);
+    try {
+      await navigator.clipboard.writeText(props.roomCode);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = props.roomCode;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopiedCode(true);
+    timerCodeRef.current = window.setTimeout(() => {
+      setCopiedCode(false);
+      timerCodeRef.current = null;
+    }, 1800);
+  };
+
+  const copyLink = async () => {
     if (!props.roomCode) return;
     const inviteLink = `${window.location.origin}/?join=${props.roomCode}`;
-    if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+    if (timerLinkRef.current) window.clearTimeout(timerLinkRef.current);
     try {
       await navigator.clipboard.writeText(inviteLink);
-      setCopied(true);
-      copyTimerRef.current = window.setTimeout(() => {
-        setCopied(false);
-        copyTimerRef.current = null;
-      }, 1500);
     } catch {
       const ta = document.createElement("textarea");
       ta.value = inviteLink;
@@ -188,42 +210,62 @@ function LobbyBlock(props: GameScreenProps) {
       ta.select();
       document.execCommand("copy");
       document.body.removeChild(ta);
-      setCopied(true);
-      copyTimerRef.current = window.setTimeout(() => {
-        setCopied(false);
-        copyTimerRef.current = null;
-      }, 1500);
     }
+    setCopiedLink(true);
+    timerLinkRef.current = window.setTimeout(() => {
+      setCopiedLink(false);
+      timerLinkRef.current = null;
+    }, 1800);
   };
 
   return (
     <div className="lobby">
       <div className="lobby-card">
-        <h2>LOBBY</h2>
-        <div className="lobby-share">
-          <span>
-            Code <b>{props.roomCode}</b> · {props.players.length}/5 Players
-          </span>
-          <button className="copy-btn" onClick={copy}>
-            {copied ? "LINK COPIED ✓" : "🔗 COPY INVITE LINK"}
+        <div className="lobby-head">
+          <h2>ROOM LOBBY</h2>
+          <span className="lobby-count">PLAYERS {props.players.length}/5</span>
+        </div>
+
+        <div className="lobby-code-box">
+          <span className="lobby-code-label">4-DIGIT ROOM CODE</span>
+          <div className="lobby-code-big">{props.roomCode}</div>
+        </div>
+
+        <div className="lobby-actions-row">
+          <button className="btn-brutal btn-copy-code" onClick={copyCode}>
+            {copiedCode ? "CODE COPIED ✓" : "📋 COPY CODE"}
+          </button>
+          <button className="btn-brutal btn-copy-link" onClick={copyLink}>
+            {copiedLink ? "LINK COPIED ✓" : "🔗 COPY INVITE LINK"}
           </button>
         </div>
-        <div className="lobby-players">
-          {props.players.map((p) => (
-            <div key={p.nickname} className={`lobby-row ${p.nickname === props.nickname ? "me" : ""}`}>
-              <span>{p.nickname}</span>
-              <span className="lobby-tag">
-                {p.nickname === props.host ? "HOST" : p.nickname === props.nickname ? "YOU" : ""}
-              </span>
-            </div>
-          ))}
+
+        <div className="lobby-players-section">
+          <div className="lobby-players-title">CONNECTED PLAYERS</div>
+          <div className="lobby-players">
+            {props.players.map((p) => (
+              <div key={p.nickname} className={`lobby-row ${p.nickname === props.nickname ? "me" : ""}`}>
+                <div className="lobby-player-info">
+                  <span className="player-dot" style={{ background: p.color || "#4ade80" }} />
+                  <span className="lobby-player-name">{p.nickname}</span>
+                </div>
+                <span className="lobby-tag">
+                  {p.nickname === props.host ? "HOST" : p.nickname === props.nickname ? "YOU" : ""}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
+
         {isHost ? (
-          <button className="btn-brutal btn-big" onClick={props.onStartRoom} disabled={props.players.length < 1}>
-            START MATCH
+          <button className="btn-brutal btn-big btn-start" onClick={props.onStartRoom} disabled={props.players.length < 1}>
+            ⚡ START MATCH
           </button>
         ) : (
-          <p className="lobby-wait">Waiting for the host to start…</p>
+          <div className="lobby-wait">
+            <div className="lobby-wait-spinner" />
+            <span>Waiting for host to start…</span>
+          </div>
         )}
       </div>
     </div>

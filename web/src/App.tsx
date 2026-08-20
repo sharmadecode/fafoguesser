@@ -67,6 +67,12 @@ export default function App() {
     }
     return "";
   });
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search.includes("join=")) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
   const [nickname, setNickname] = useState(() => localStorage.getItem(NICK_KEY) ?? "");
   const nicknameRef = useRef(nickname);
   nicknameRef.current = nickname;
@@ -242,7 +248,8 @@ export default function App() {
       SERVER_URL,
       () => {
         const n = nicknameRef.current;
-        if (n) client.emit("auth", { nickname: n, sessionId: deviceSessionId() });
+        const token = localStorage.getItem(TOKEN_KEY) || undefined;
+        if (n) client.emit("auth", { nickname: n, sessionId: deviceSessionId(), token });
       },
       (msg) => setError(msg),
     );

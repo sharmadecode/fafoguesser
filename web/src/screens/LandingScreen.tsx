@@ -31,12 +31,6 @@ const STEPS = [
   { n: "04", t: "CLIMB THE RANKS", d: "Closer guess = higher score (up to 1,000 pts). Most points after 5 rounds takes the win." },
 ];
 
-const FAQS = [
-  { q: "Is FafoGuesser free to play?", a: "Yes! FafoGuesser is 100% free with unlimited rounds, zero paywalls, and no account signup required." },
-  { q: "How do multiplayer rooms work?", a: "Click 'MAKE A ROOM' to generate a 4-letter code or invite link. Share the link with friends on Discord or WhatsApp to play live in real-time." },
-  { q: "Where do the 360° panoramas come from?", a: "Locations are sourced from authentic open 360° street view photography spanning 800+ countries, territories, and cities worldwide." },
-];
-
 export function LandingScreen({ nickname, initialCode = "", busy, error, onQuickPlay, onCreateRoom, onJoinRoom }: LandingScreenProps) {
   const [name, setName] = useState(nickname);
   const [code, setCode] = useState(initialCode);
@@ -84,18 +78,20 @@ export function LandingScreen({ nickname, initialCode = "", busy, error, onQuick
 
       <main className="landing-main">
         <header className="hero">
-          <div className="hero-badge-wrap">
-            <img src="/favicon.svg" alt="FafoGuesser Logo" className="hero-logo-icon" width="64" height="64" />
+          <div className="hero-brand-row">
+            <div className="hero-badge-wrap">
+              <img src="/favicon.svg" alt="FafoGuesser Logo" className="hero-logo-icon" width="48" height="48" />
+            </div>
+            <h1 className="logo landing-logo" aria-label="FAFO GUESSER">
+              {"FAFO".split("").map((c, i) => (
+                <span key={`f${i}`} className="logo-chunk logo-fafo" style={{ animationDelay: `${i * 0.07}s` }}>{c}</span>
+              ))}
+              <span className="logo-chunk logo-spacer" style={{ animationDelay: "0.28s" }}>&nbsp;</span>
+              {"GUESSER".split("").map((c, i) => (
+                <span key={`g${i}`} className="logo-chunk logo-guess" style={{ animationDelay: `${0.28 + i * 0.07}s` }}>{c}</span>
+              ))}
+            </h1>
           </div>
-          <h1 className="logo landing-logo" aria-label="FAFO GUESSER">
-            {"FAFO".split("").map((c, i) => (
-              <span key={`f${i}`} className="logo-chunk logo-fafo" style={{ animationDelay: `${i * 0.07}s` }}>{c}</span>
-            ))}
-            <span className="logo-chunk logo-spacer" style={{ animationDelay: "0.28s" }}>&nbsp;</span>
-            {"GUESSER".split("").map((c, i) => (
-              <span key={`g${i}`} className="logo-chunk logo-guess" style={{ animationDelay: `${0.28 + i * 0.07}s` }}>{c}</span>
-            ))}
-          </h1>
           <span className="tagline hero-tagline">figure it out or find out</span>
         </header>
 
@@ -171,19 +167,6 @@ export function LandingScreen({ nickname, initialCode = "", busy, error, onQuick
                   <p>{s.d}</p>
                 </div>
               </div>
-            ))}
-          </div>
-        </section>
-
-        {/* SEO & Discoverability FAQ Content for Search Engines */}
-        <section className="seo-section" aria-label="Game FAQ & Highlights">
-          <h2 className="seo-title">FREQUENTLY ASKED QUESTIONS</h2>
-          <div className="seo-faq-grid">
-            {FAQS.map((f, i) => (
-              <article key={i} className="seo-faq-card">
-                <h3>{f.q}</h3>
-                <p>{f.a}</p>
-              </article>
             ))}
           </div>
         </section>

@@ -200,9 +200,10 @@ export function registerSocketHandlers(io: Server, services: GameServices): void
       const sessionId = rawSession.length >= 16 ? rawSession : "";
       data.sessionId = sessionId;
       const token = parsed.success ? (parsed.data.token ?? "") : "";
-      // If a token was previously issued and a mismatched token is presented, reject.
+      // If a token was previously issued for this sessionId, the client MUST present it.
+      // An omitted or mismatched token is rejected (a leaked sessionId alone must not suffice).
       const issued = sessionId ? issuedTokens.get(sessionId) : undefined;
-      if (sessionId && token && issued && token !== issued) {
+      if (sessionId && issued && (!token || token !== issued)) {
         socket.emit("auth.error", { message: "session_mismatch" });
         return;
       }

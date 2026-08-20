@@ -126,11 +126,8 @@ async function fetchPanoBlobWithRetry(
   retryNonce: number,
   signal: AbortSignal,
 ): Promise<Blob | null> {
-  const attempts = [
-    preferredSize,
-    "?size=2048",
-    "?size=2048",
-  ];
+  const alt = preferredSize === "?size=2048" ? "" : "?size=2048";
+  const attempts = [preferredSize, alt, preferredSize];
   for (let i = 0; i < attempts.length; i++) {
     if (signal.aborted) return null;
     const sizeParam = attempts[i];
