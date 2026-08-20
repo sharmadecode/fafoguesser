@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { validateNickname } from "./auth.js";
 import { rateLimit } from "./rateLimit.js";
-import { ENV } from "./config.js";
+import { ENV, GAME } from "./config.js";
 import { MatchRegistry } from "./registry.js";
 import { MatchmakingService } from "./matchmaking.js";
 import { RoomService } from "./rooms.js";
@@ -212,9 +212,18 @@ export function registerSocketHandlers(io: Server, services: GameServices): void
           sendSnapshot(io, socket, rejoinMatch);
           return;
         }
-        // If reconnect window expired or credential doesn't match the in-flight game,
-        // remove the stale record so the player can start a fresh game.
-        rejoinMatch.removePlayer(nickname);
+
+        const p = rejoinMatch.players.get(nickname);
+        const expired = !p || !p.disconnectedAt || (Date.now() - p.disconnectedAt > GAME.RECONNECT_WINDOW_MS);
+
+        if (expired) {
+          // Reconnect window expired — drop the stale record and let player proceed fresh
+          rejoinMatch.removePlayer(nickname);
+        } else {
+          // Nickname is in an active match and owner is still within their 45s reconnect window
+          socket.emit("auth.error", { message: "already_online" });
+          return;
+        }
       }
 
       // One active session per nickname.
