@@ -42,12 +42,18 @@ function getMaxTextureSize(): number {
 
 let cachedMaxTextureSize: number | null = null;
 
-async function preparePanoBlob(rawBlob: Blob): Promise<Blob> {
+async function preparePanoBlob(rawBlob: Blob, sizeParam: string): Promise<Blob> {
   try {
     if (cachedMaxTextureSize === null) {
       cachedMaxTextureSize = getMaxTextureSize();
     }
     const maxDim = cachedMaxTextureSize;
+
+    // If 2048px was fetched (guaranteed <= maxDim for any GPU >= 2048),
+    // skip the createImageBitmap decode entirely and pass through directly!
+    if (sizeParam === "?size=2048" && maxDim >= 2048) {
+      return rawBlob;
+    }
 
     let width = 0;
     let height = 0;
@@ -140,7 +146,7 @@ async function fetchPanoBlobWithRetry(
       if (res.ok) {
         const rawBlob = await res.blob();
         if (rawBlob && rawBlob.size > 0) {
-          const safeBlob = await preparePanoBlob(rawBlob);
+          const safeBlob = await preparePanoBlob(rawBlob, sizeParam);
           if (safeBlob) return safeBlob;
         }
       }

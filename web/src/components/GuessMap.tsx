@@ -105,10 +105,13 @@ export const GuessMap = memo(function GuessMap({ enabled, reveal, onPinPlace, ro
   useEffect(() => {
     const div = divRef.current;
     if (!div || mapRef.current) return;
+    const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
     const map = L.map(div, {
       zoomControl: false,
-      attributionControl: true,
+      attributionControl: false,
       worldCopyJump: true,
+      fadeAnimation: false,
+      zoomAnimation: true,
       minZoom: 1.5,
       maxBounds: [
         [-85, -360],
@@ -122,14 +125,17 @@ export const GuessMap = memo(function GuessMap({ enabled, reveal, onPinPlace, ro
         tileSize: 512,
         zoomOffset: -1,
         maxZoom: 20,
-        detectRetina: true,
-        attribution:
-          '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxNativeZoom: 19,
+        keepBuffer: 4,
+        updateWhenZooming: true,
+        detectRetina: !isMobile,
       }).addTo(map);
     } else {
       L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 18,
-        attribution: "&copy; OpenStreetMap contributors",
+        maxNativeZoom: 18,
+        keepBuffer: 4,
+        updateWhenZooming: true,
       }).addTo(map);
     }
     return () => {
@@ -187,52 +193,52 @@ export const GuessMap = memo(function GuessMap({ enabled, reveal, onPinPlace, ro
     markersRef.current = [];
     if (!reveal) return;
 
+    // Immediately re-measure fullscreen dimensions before calculating bounds
+    map.invalidateSize({ animate: false });
+
     // At reveal: show every player's guess pin + the truth location + lines,
     // zoomed to the bounds so everyone's guess is visible at once.
-    if (reveal) {
-      const truthLatLng = L.latLng(reveal.location.lat, reveal.location.lng);
-      const truth = L.marker(truthLatLng, { icon: truthIcon() }).addTo(map);
-      markersRef.current.push(truth);
+    const truthLatLng = L.latLng(reveal.location.lat, reveal.location.lng);
+    const truth = L.marker(truthLatLng, { icon: truthIcon() }).addTo(map);
+    markersRef.current.push(truth);
 
-      const bounds = L.latLngBounds([truthLatLng]);
+    const bounds = L.latLngBounds([truthLatLng]);
 
-      for (const r of reveal.results) {
-        if (r.lat == null || r.lng == null) continue;
-        const guessLatLng = L.latLng(r.lat, r.lng);
-        bounds.extend(guessLatLng);
+    for (const r of reveal.results) {
+      if (r.lat == null || r.lng == null) continue;
+      const guessLatLng = L.latLng(r.lat, r.lng);
+      bounds.extend(guessLatLng);
 
-        markersRef.current.push(
-          L.marker(guessLatLng, { icon: pinIconLabeled(r.color, r.nickname) }).addTo(map),
-        );
+      markersRef.current.push(
+        L.marker(guessLatLng, { icon: pinIconLabeled(r.color, r.nickname) }).addTo(map),
+      );
 
-        markersRef.current.push(
-          L.polyline(
-            [
-              [r.lat, r.lng],
-              [reveal.location.lat, reveal.location.lng],
-            ],
-            { color: r.color, weight: 5, opacity: 1 },
-          ).addTo(map),
-        );
-      }
-
-      // Stay zoomed out to the bounds so every pin and line stays in view
-      // for the whole reveal. Tight padding keeps the view ~15% closer in.
-      map.flyToBounds(bounds.pad(0.2), { duration: 1.0, maxZoom: 16 });
+      markersRef.current.push(
+        L.polyline(
+          [
+            [r.lat, r.lng],
+            [reveal.location.lat, reveal.location.lng],
+          ],
+          { color: r.color, weight: 5, opacity: 1 },
+        ).addTo(map),
+      );
     }
+
+    // Stay zoomed out to the bounds so every pin and line stays in view
+    // for the whole reveal with a smooth glide animation.
+    map.flyToBounds(bounds.pad(0.25), { duration: 1.1, maxZoom: 16 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reveal]);
 
   // The reveal zoomed the map in on the truth location; when the next round
   // starts, snap back to the small world view so everyone guesses blind again.
-  // Keyed on `round` only: a `submitted` flip (e.g. a rejected guess) must
-  // never wipe the pin or reset the view mid-round.
   const prevRoundRef = useRef(round);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || round === prevRoundRef.current) return;
     prevRoundRef.current = round;
     setPin(null);
+    map.invalidateSize({ animate: false });
     map.setView([20, 0], 3);
   }, [round]);
 

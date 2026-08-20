@@ -294,7 +294,7 @@ export class Match {
     // unservable and there is nothing real to verify.
     if (ENV.MAPILLARY_TOKEN) {
       for (let attempt = 0; attempt < 2; attempt++) {
-        if (await warmPanoramaVerified(location.imageId, 3_500)) break;
+        if (await warmPanoramaVerified(location.imageId, 1_500)) break;
         console.warn(`[match] pano unfetchable, re-picking (attempt ${attempt + 1})`);
         try {
           location = await pickRandomLocation();

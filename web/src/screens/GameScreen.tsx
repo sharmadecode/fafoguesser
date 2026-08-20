@@ -310,13 +310,15 @@ function IntermissionOverlay({
     if (!payload) return;
     const me = payload.finalRanks.find((r) => r.nickname === nickname);
     const myRank = payload.finalRanks.findIndex((r) => r.nickname === nickname) + 1;
-    const url = window.location.origin;
-    const text = `🌍 FafoGuesser Match #${payload.matchNumber}\n🏆 Score: ${me?.score ?? 0} pts (Rank #${myRank || 1})\nPlay free: ${url}`;
+    const url = window.location.origin.includes("localhost")
+      ? "https://fafoguesser.onrender.com"
+      : window.location.origin;
+    const text = `🌍 FafoGuesser Match #${payload.matchNumber}\n🏆 Score: ${me?.score ?? 0} pts (Rank #${myRank || 1})`;
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
         await navigator.share({ title: "FafoGuesser", text, url });
       } else {
-        await navigator.clipboard.writeText(text);
+        await navigator.clipboard.writeText(`${text}\nPlay free: ${url}`);
         setShared(true);
         setTimeout(() => setShared(false), 2000);
       }

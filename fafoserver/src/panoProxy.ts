@@ -267,6 +267,7 @@ export function getPanorama(
 /** Kick off the image fetch at round start so the first client request is instant. */
 export function warmPanorama(imageId: string): void {
   if (!IMAGE_ID_RE.test(imageId)) return;
+  void getPanorama(imageId, "2048");
   void getPanorama(imageId, "original");
 }
 
@@ -281,10 +282,9 @@ export async function warmPanoramaVerified(
   timeoutMs: number,
 ): Promise<boolean> {
   if (!IMAGE_ID_RE.test(imageId)) return false;
-  const cacheKey = `${imageId}#original`;
-  const cached = cache.get(cacheKey);
+  const cached = cache.get(`${imageId}#2048`) || cache.get(`${imageId}#original`);
   if (cached && Date.now() < cached.expiresAt) return true;
-  const pending = getPanorama(imageId, "original");
+  const pending = getPanorama(imageId, "2048");
   return new Promise((resolve) => {
     const t = setTimeout(() => resolve(false), timeoutMs);
     pending
