@@ -57,6 +57,16 @@ export default function App() {
   const client = clientRef.current;
 
   const [screen, setScreen] = useState<Screen>("landing");
+  const [initialJoinCode] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const j = params.get("join");
+      if (j && /^[A-Za-z0-9]{4}$/.test(j)) {
+        return j.toUpperCase();
+      }
+    }
+    return "";
+  });
   const [nickname, setNickname] = useState(() => localStorage.getItem(NICK_KEY) ?? "");
   const nicknameRef = useRef(nickname);
   nicknameRef.current = nickname;
@@ -386,6 +396,7 @@ export default function App() {
     return (
       <LandingScreen
         nickname={nickname}
+        initialCode={initialJoinCode}
         busy={busy}
         error={error}
         onQuickPlay={quickPlay}

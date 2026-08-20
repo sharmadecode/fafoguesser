@@ -1,0 +1,25 @@
+{
+  "name": "FafoGuesser — Free 360° Multiplayer Geography Game",
+  "short_name": "FafoGuesser",
+  "description": "Play free real-time multiplayer 360° street view geography games with friends. Explore 800+ worldwide regions.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf9f0",
+  "theme_color": "#4ade80",
+  "orientation": "any",
+  "categories": ["games", "entertainment", "education", "trivia"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

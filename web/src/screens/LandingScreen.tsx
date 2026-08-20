@@ -3,6 +3,7 @@ import { useLandingInteractions } from "../hooks/useLandingInteractions";
 
 interface LandingScreenProps {
   nickname: string;
+  initialCode?: string;
   busy: string | null;
   error: string | null;
   onQuickPlay: (name: string) => void;
@@ -30,9 +31,15 @@ const STEPS = [
   { n: "04", t: "CLIMB THE RANKS", d: "Closer guess = higher score (up to 1,000 pts). Most points after 5 rounds takes the win." },
 ];
 
-export function LandingScreen({ nickname, busy, error, onQuickPlay, onCreateRoom, onJoinRoom }: LandingScreenProps) {
+const FAQS = [
+  { q: "Is FafoGuesser free to play?", a: "Yes! FafoGuesser is 100% free with unlimited rounds, zero paywalls, and no account signup required." },
+  { q: "How do multiplayer rooms work?", a: "Click 'MAKE A ROOM' to generate a 4-letter code or invite link. Share the link with friends on Discord or WhatsApp to play live in real-time." },
+  { q: "Where do the 360° panoramas come from?", a: "Locations are sourced from authentic open 360° street view photography spanning 800+ countries, territories, and cities worldwide." },
+];
+
+export function LandingScreen({ nickname, initialCode = "", busy, error, onQuickPlay, onCreateRoom, onJoinRoom }: LandingScreenProps) {
   const [name, setName] = useState(nickname);
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(initialCode);
   const nameValid = NICKNAME_RE.test(name.trim());
   const nameTouched = name.length > 0;
 
@@ -41,6 +48,10 @@ export function LandingScreen({ nickname, busy, error, onQuickPlay, onCreateRoom
   useEffect(() => {
     if (nickname) setName(nickname);
   }, [nickname]);
+
+  useEffect(() => {
+    if (initialCode) setCode(initialCode);
+  }, [initialCode]);
 
   const join = () => {
     const c = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -73,10 +84,8 @@ export function LandingScreen({ nickname, busy, error, onQuickPlay, onCreateRoom
 
       <main className="landing-main">
         <header className="hero">
-          <div className="hero-globe" aria-hidden="true">
-            <div className="globe-ring globe-ring-1" />
-            <div className="globe-ring globe-ring-2" />
-            <div className="globe-ring globe-ring-3" />
+          <div className="hero-badge-wrap">
+            <img src="/favicon.svg" alt="FafoGuesser Logo" className="hero-logo-icon" width="64" height="64" />
           </div>
           <h1 className="logo landing-logo" aria-label="FAFO GUESSER">
             {"FAFO".split("").map((c, i) => (
@@ -162,6 +171,19 @@ export function LandingScreen({ nickname, busy, error, onQuickPlay, onCreateRoom
                   <p>{s.d}</p>
                 </div>
               </div>
+            ))}
+          </div>
+        </section>
+
+        {/* SEO & Discoverability FAQ Content for Search Engines */}
+        <section className="seo-section" aria-label="Game FAQ & Highlights">
+          <h2 className="seo-title">FREQUENTLY ASKED QUESTIONS</h2>
+          <div className="seo-faq-grid">
+            {FAQS.map((f, i) => (
+              <article key={i} className="seo-faq-card">
+                <h3>{f.q}</h3>
+                <p>{f.a}</p>
+              </article>
             ))}
           </div>
         </section>

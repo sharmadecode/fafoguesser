@@ -103,6 +103,24 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   gap: 10px;
   text-align: center;
 }
+.hero-badge-wrap {
+  display: inline-flex;
+  padding: 8px;
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+  border-radius: 16px;
+  margin-bottom: 2px;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.hero-badge-wrap:hover {
+  transform: scale(1.06) rotate(-2deg);
+}
+.hero-logo-icon {
+  display: block;
+  width: 54px;
+  height: 54px;
+}
 .hero-globe {
   position: absolute;
   top: 50%;
@@ -242,11 +260,56 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .howto-body h3 { font-size: 0.92rem; font-weight: 900; letter-spacing: 0.08em; margin-bottom: 2px; }
 .howto-body p { font-size: 0.86rem; line-height: 1.35; font-weight: 700; color: var(--ink); opacity: 0.9; }
 
+/* SEO & Discoverability FAQ section */
+.seo-section {
+  width: 100%;
+  margin-top: 6px;
+  text-align: left;
+}
+.seo-title {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: var(--ink);
+  margin-bottom: 12px;
+  text-align: center;
+}
+.seo-faq-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.seo-faq-card {
+  background: #ffffff;
+  border: 3px solid var(--ink);
+  padding: 14px 16px;
+  transition: transform 0.1s ease;
+}
+.seo-faq-card:hover {
+  transform: translate(-2px, -2px);
+}
+.seo-faq-card h3 {
+  font-size: 0.88rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+.seo-faq-card p {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--ink);
+  opacity: 0.85;
+}
+
 @media (max-width: 760px) {
   .landing-main { padding: 20px 14px 32px; gap: 22px; }
   .landing-card { padding: 22px 18px; }
   .landing-card:hover { transform: rotate(-0.4deg); }
   .howto-grid { grid-template-columns: 1fr; }
+  .seo-faq-grid { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -823,8 +886,25 @@ display: flex;
 .podium-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .podium-score { font-family: var(--mono); font-size: 1.1rem; }
 
+.intermission-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+}
+.btn-share {
+  background: var(--green);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  font-size: 0.9rem;
+  width: 100%;
+  padding: 12px 16px;
+}
 .next-in { font-family: var(--mono); font-size: 0.85rem; font-weight: 800; color: var(--ink); }
-.intermission-leave { margin-top: 18px; background: var(--red); color: #fff; }
+.intermission-leave { background: var(--red); color: #fff; width: 100%; }
 
 /* ---------- Leaflet & Pannellum chrome ---------- */
 .leaflet-control-attribution {

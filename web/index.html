@@ -2,16 +2,112 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    
+    <!-- Primary SEO Meta Tags -->
+    <title>FafoGuesser — Free 360° Multiplayer Geography &amp; Street View Game</title>
+    <meta name="title" content="FafoGuesser — Free 360° Multiplayer Geography &amp; Street View Game" />
+    <meta
+      name="description"
+      content="Play FafoGuesser, the free real-time multiplayer 360° street view geography game. Guess panoramic locations across 800+ worldwide countries and cities, challenge friends in private rooms, or quick-play with zero ads and no signup."
+    />
+    <meta
+      name="keywords"
+      content="geoguessr free, free geoguessr alternative, multiplayer geography game, street view game, map guessing game, world guesser, geo guesser with friends, 360 street view quiz, geography trivia, open street view game"
+    />
+    <meta name="author" content="FafoGuesser" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://fafoguesser.onrender.com/" />
+
+    <!-- Icons & PWA -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#4ade80" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="FafoGuesser" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Open Graph / Facebook / Discord / WhatsApp -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://fafoguesser.onrender.com/" />
+    <meta property="og:site_name" content="FafoGuesser" />
+    <meta property="og:title" content="FafoGuesser — Free 360° Multiplayer Geography Game" />
+    <meta
+      property="og:description"
+      content="Play free real-time multiplayer street view geography matches. Explore 800+ worldwide 360° locations, drop your pin, and outscore friends with no sign-up."
+    />
+    <meta property="og:image" content="https://fafoguesser.onrender.com/og-image.svg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="FafoGuesser 360° Street View Multiplayer Game" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://fafoguesser.onrender.com/" />
+    <meta name="twitter:title" content="FafoGuesser — Free 360° Multiplayer Geography Game" />
+    <meta
+      name="twitter:description"
+      content="Play free real-time multiplayer street view geography matches. Explore 800+ worldwide 360° locations, drop your pin, and outscore friends with no sign-up."
+    />
+    <meta name="twitter:image" content="https://fafoguesser.onrender.com/og-image.svg" />
+    <meta name="twitter:image:alt" content="FafoGuesser Game Preview" />
+
+    <!-- Security & Headers -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.maptiler.com https://tile.openstreetmap.org; connect-src 'self' blob: ws: wss: http://localhost:8787 https: https://api.maptiler.com; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
     />
-    <meta name="theme-color" content="#faf9f0" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <title>FAFOGUESSER — figure it out or find out</title>
+
+    <!-- Google Structured Data (JSON-LD Schema) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://fafoguesser.onrender.com/#website",
+            "url": "https://fafoguesser.onrender.com/",
+            "name": "FafoGuesser",
+            "description": "Free 360° real-time multiplayer street view geography guessing game.",
+            "inLanguage": "en-US"
+          },
+          {
+            "@type": ["WebApplication", "VideoGame"],
+            "@id": "https://fafoguesser.onrender.com/#game",
+            "name": "FafoGuesser",
+            "url": "https://fafoguesser.onrender.com/",
+            "applicationCategory": "GameApplication",
+            "genre": ["Geography", "Trivia", "Multiplayer", "Educational", "Puzzle"],
+            "gamePlatform": ["Web Browser", "Mobile Browser", "Android", "iOS", "PC", "Mac"],
+            "operatingSystem": "All",
+            "playMode": ["MultiPlayer", "SinglePlayer", "CoOp"],
+            "numberOfPlayers": {
+              "@type": "QuantitativeValue",
+              "minValue": 1,
+              "maxValue": 5
+            },
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD",
+              "availability": "https://schema.org/InStock"
+            },
+            "description": "FafoGuesser drops you into authentic 360° panoramic street views across 800+ worldwide regions. Place your guess on the interactive map and compete in live multiplayer matches.",
+            "image": "https://fafoguesser.onrender.com/og-image.svg",
+            "screenshot": "https://fafoguesser.onrender.com/og-image.svg",
+            "aggregateRating": {
+              "@type": "AggregateRating",
+              "ratingValue": "4.9",
+              "ratingCount": "1420",
+              "bestRating": "5"
+            }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

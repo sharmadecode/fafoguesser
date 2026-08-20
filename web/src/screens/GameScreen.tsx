@@ -118,6 +118,7 @@ export function GameScreen(props: GameScreenProps) {
           payload={props.intermission}
           intermissionEndsAt={props.intermissionEndsAt}
           serverNow={props.serverNow}
+          nickname={props.nickname}
           onLeave={props.onLeave}
         />
       ) : waiting ? (
@@ -171,9 +172,10 @@ function LobbyBlock(props: GameScreenProps) {
 
   const copy = async () => {
     if (!props.roomCode) return;
+    const inviteLink = `${window.location.origin}/?join=${props.roomCode}`;
     if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
     try {
-      await navigator.clipboard.writeText(props.roomCode);
+      await navigator.clipboard.writeText(inviteLink);
       setCopied(true);
       copyTimerRef.current = window.setTimeout(() => {
         setCopied(false);
@@ -181,7 +183,7 @@ function LobbyBlock(props: GameScreenProps) {
       }, 1500);
     } catch {
       const ta = document.createElement("textarea");
-      ta.value = props.roomCode;
+      ta.value = inviteLink;
       document.body.appendChild(ta);
       ta.select();
       document.execCommand("copy");
@@ -200,11 +202,10 @@ function LobbyBlock(props: GameScreenProps) {
         <h2>LOBBY</h2>
         <div className="lobby-share">
           <span>
-            Share code <b>{props.roomCode}</b> with up to {5 - props.players.length} more player
-            {5 - props.players.length === 1 ? "" : "s"}
+            Code <b>{props.roomCode}</b> · {props.players.length}/5 Players
           </span>
           <button className="copy-btn" onClick={copy}>
-            {copied ? "COPIED ✓" : "COPY"}
+            {copied ? "LINK COPIED ✓" : "🔗 COPY INVITE LINK"}
           </button>
         </div>
         <div className="lobby-players">
@@ -247,18 +248,41 @@ function IntermissionOverlay({
   payload,
   intermissionEndsAt,
   serverNow,
+  nickname,
   onLeave,
 }: {
   payload: IntermissionPayload | null;
   intermissionEndsAt: number | null;
   serverNow: () => number;
+  nickname: string;
   onLeave: () => void;
 }) {
+  const [shared, setShared] = useState(false);
   const now = useNow(serverNow, 500);
   // A rejoin mid-intermission has no intermission.start payload — count down
   // from the snapshot's intermissionEndsAt instead.
   const deadline = payload ? payload.nextMatchAt : intermissionEndsAt;
   const remaining = deadline ? Math.max(0, deadline - now) : 0;
+
+  const share = async () => {
+    if (!payload) return;
+    const me = payload.finalRanks.find((r) => r.nickname === nickname);
+    const myRank = payload.finalRanks.findIndex((r) => r.nickname === nickname) + 1;
+    const url = window.location.origin;
+    const text = `🌍 FafoGuesser Match #${payload.matchNumber}\n🏆 Score: ${me?.score ?? 0} pts (Rank #${myRank || 1})\nPlay free: ${url}`;
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({ title: "FafoGuesser", text, url });
+      } else {
+        await navigator.clipboard.writeText(text);
+        setShared(true);
+        setTimeout(() => setShared(false), 2000);
+      }
+    } catch {
+      /* ignore cancel */
+    }
+  };
+
   return (
     <div className="intermission">
       <div className="intermission-card">
@@ -274,10 +298,17 @@ function IntermissionOverlay({
             ))}
           </div>
         )}
-        <div className="next-in">next match in {Math.ceil(remaining / 1000)}s</div>
-        <button className="btn-brutal intermission-leave" onClick={onLeave}>
-          LEAVE
-        </button>
+        <div className="intermission-actions">
+          {payload && (
+            <button className="btn-brutal btn-share" onClick={share}>
+              {shared ? "COPIED TO CLIPBOARD ✓" : "📤 SHARE RESULT"}
+            </button>
+          )}
+          <div className="next-in">next match in {Math.ceil(remaining / 1000)}s</div>
+          <button className="btn-brutal intermission-leave" onClick={onLeave}>
+            LEAVE
+          </button>
+        </div>
       </div>
     </div>
   );

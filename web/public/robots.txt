@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://fafoguesser.onrender.com/sitemap.xml

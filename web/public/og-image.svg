@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.5" fill="#0e1116" fill-opacity="0.12" />
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#faf9f0" />
+  <rect width="1200" height="630" fill="url(#grid)" />
+
+  <!-- Outer Neo-Brutalist Frame -->
+  <rect x="24" y="24" width="1152" height="582" fill="none" stroke="#0e1116" stroke-width="8" rx="16" />
+
+  <!-- Left Content Area -->
+  <g transform="translate(80, 110)">
+    <!-- Badge -->
+    <rect x="0" y="0" width="380" height="46" rx="8" fill="#0e1116" />
+    <rect x="-4" y="-4" width="380" height="46" rx="8" fill="#4ade80" stroke="#0e1116" stroke-width="3" />
+    <text x="186" y="25" fill="#0e1116" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="16" letter-spacing="2" text-anchor="middle">⚡ FREE 360° MULTIPLAYER GAME</text>
+
+    <!-- Main Title -->
+    <text x="0" y="145" fill="#0e1116" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="78" letter-spacing="-1">FAFO<tspan fill="#4ade80">GUESSER</tspan></text>
+
+    <!-- Subtitle / Value Prop -->
+    <text x="0" y="205" fill="#0e1116" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="26" opacity="0.9">Figure it out or find out. Explore real street view panoramas</text>
+    <text x="0" y="240" fill="#0e1116" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="26" opacity="0.9">across 800+ worldwide regions with friends in real-time.</text>
+
+    <!-- Feature Pills Row -->
+    <g transform="translate(0, 300)">
+      <!-- Pill 1 -->
+      <g transform="translate(0, 0)">
+        <rect x="4" y="4" width="160" height="44" rx="8" fill="#0e1116" />
+        <rect x="0" y="0" width="160" height="44" rx="8" fill="#ffffff" stroke="#0e1116" stroke-width="3" />
+        <text x="80" y="27" fill="#0e1116" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="16" text-anchor="middle">🌍 800+ REGIONS</text>
+      </g>
+      <!-- Pill 2 -->
+      <g transform="translate(180, 0)">
+        <rect x="4" y="4" width="170" height="44" rx="8" fill="#0e1116" />
+        <rect x="0" y="0" width="170" height="44" rx="8" fill="#fbbf24" stroke="#0e1116" stroke-width="3" />
+        <text x="85" y="27" fill="#0e1116" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="16" text-anchor="middle">⚡ LIVE LOBBIES</text>
+      </g>
+      <!-- Pill 3 -->
+      <g transform="translate(370, 0)">
+        <rect x="4" y="4" width="170" height="44" rx="8" fill="#0e1116" />
+        <rect x="0" y="0" width="170" height="44" rx="8" fill="#ffffff" stroke="#0e1116" stroke-width="3" />
+        <text x="85" y="27" fill="#0e1116" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="16" text-anchor="middle">🎮 ZERO SIGN-UP</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Right Logo Artwork -->
+  <g transform="translate(820, 160) scale(3.4)">
+    <!-- Shadow -->
+    <circle cx="43" cy="55" r="32" fill="#0e1116" />
+    <path d="M 69 15 C 55.2 15 44 26.2 44 40 C 44 57 69 85 69 85 C 69 85 94 57 94 40 C 94 26.2 82.8 15 69 15 Z" fill="#0e1116" />
+
+    <!-- Globe -->
+    <circle cx="39" cy="51" r="32" fill="#4ade80" stroke="#0e1116" stroke-width="4.5" />
+    <ellipse cx="39" cy="51" rx="32" ry="13" fill="none" stroke="#0e1116" stroke-width="4" />
+    <line x1="7" y1="51" x2="71" y2="51" stroke="#0e1116" stroke-width="4" />
+    <line x1="39" y1="19" x2="39" y2="83" stroke="#0e1116" stroke-width="4" />
+
+    <!-- Pin -->
+    <path d="M 65 11 C 51.2 11 40 22.2 40 36 C 40 53 65 81 65 81 C 65 81 90 53 90 36 C 90 22.2 78.8 11 65 11 Z" fill="#fbbf24" stroke="#0e1116" stroke-width="4.5" stroke-linejoin="round" />
+    <circle cx="65" cy="36" r="9" fill="#faf9f0" stroke="#0e1116" stroke-width="4" />
+  </g>
+</svg>
